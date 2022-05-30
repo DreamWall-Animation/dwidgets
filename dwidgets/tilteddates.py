@@ -17,6 +17,7 @@ class TiltedDates(QtWidgets.QWidget):
         self.angle = DEFAULT_ROTATION_ANGLE
         self.spacing = DEFAULT_SPACING
         self.font = QtGui.QFont()
+        self.color = None
 
     @property
     def dates(self):
@@ -31,7 +32,8 @@ class TiltedDates(QtWidgets.QWidget):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setPen(QtCore.Qt.transparent)
-        painter.setBrush(QtCore.Qt.black)
+        color = self.color or QtWidgets.QApplication.palette().text().color()
+        painter.setBrush(color)
         painter.translate(20, 100)
         for i, d in enumerate(self.dates):
             path = QtGui.QPainterPath()
