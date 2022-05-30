@@ -120,6 +120,9 @@ class WeightSlider(QtWidgets.QWidget):
         self.setMouseTracking(True)
         self.setMinimumSize(QtCore.QSize(35, 35))
 
+    def resizeEvent(self, _):
+        self.update_geometries()
+
     def _skip_if_not_editable(func):
         def decorator(self, *args, **kwargs):
             if not self.editable:

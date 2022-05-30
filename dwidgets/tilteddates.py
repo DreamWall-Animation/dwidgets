@@ -11,6 +11,19 @@ class TiltedDates(QtWidgets.QWidget):
     Widget to display list of dates with tilted text.
     """
     def __init__(self, dates, parent=None):
+        """
+        @dates: List[datetime]
+        @parent: QtWidgets.QWidget
+
+        Attributes:
+            display_format: str
+            angle: int
+            spacing: Bool
+            font: QFont
+
+        Properties:
+            dates: List[datetime]
+        """
         super().__init__(parent)
         self._dates = dates
         self.display_format = DEFAULT_DISPLAY_DATE_FORMAT
@@ -27,6 +40,9 @@ class TiltedDates(QtWidgets.QWidget):
     def dates(self, dates):
         self._dates = dates
         self.repaint()
+
+    def sizeHint(self):
+        QtCore.QSize(600, 600)
 
     def paintEvent(self, _):
         painter = QtGui.QPainter(self)

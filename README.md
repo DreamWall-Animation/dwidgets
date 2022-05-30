@@ -1,2 +1,2 @@
 # dwidgets
-Custom widgets
+Collections of standard widgets
