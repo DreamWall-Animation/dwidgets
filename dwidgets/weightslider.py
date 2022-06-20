@@ -120,9 +120,6 @@ class WeightSlider(QtWidgets.QWidget):
         self.setMouseTracking(True)
         self.setMinimumSize(QtCore.QSize(35, 35))
 
-    def resizeEvent(self, _):
-        self.update_geometries()
-
     def _skip_if_not_editable(func):
         def decorator(self, *args, **kwargs):
             if not self.editable:
@@ -300,8 +297,12 @@ class WeightSlider(QtWidgets.QWidget):
                 self.graduation_color, self._graduation_points,
                 self._orientation)
         else:
-            rect = build_rect_with_padding(self.rect(), self.padding)
-            draw_empty_slider(painter, rect)
+            draw_empty_slider(
+                painter,
+                self.rect(),
+                self.padding,
+                self.display_borders,
+                self.border_color)
         painter.end()
 
     def resizeEvent(self, event):
@@ -364,10 +365,20 @@ def handle_to_rect(line, width):
     return rect
 
 
-def draw_empty_slider(painter, rect):
+def draw_empty_slider(painter, rect, padding, draw_borders, border_color):
     brush = QtWidgets.QApplication.palette().dark()
+
+    bgrect = build_rect_with_padding(rect, padding)
     painter.setBrush(brush)
-    painter.drawRoundedRect(rect, 8, 8)
+    painter.drawRoundedRect(bgrect, 8, 8)
+    if not draw_borders:
+        return
+    pen = QtGui.QPen(QtGui.QColor(border_color))
+    pen.setWidthF(3)
+    painter.setPen(pen)
+    painter.setBrush(QtCore.Qt.transparent)
+    painter.drawRoundedRect(build_rect_with_padding(rect, padding), 8, 8)
+
 
 
 def draw_slider(
