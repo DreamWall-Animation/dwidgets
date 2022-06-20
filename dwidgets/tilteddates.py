@@ -62,4 +62,3 @@ class TiltedDates(QtWidgets.QWidget):
             path.translate(i * self.spacing, 0)
             painter.drawPath(path)
         painter.end()
-
