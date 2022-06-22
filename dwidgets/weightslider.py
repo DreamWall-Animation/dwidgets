@@ -1,3 +1,5 @@
+import base64
+import json
 from PySide6 import QtWidgets, QtCore, QtGui
 import random
 
@@ -47,7 +49,7 @@ class WeightSlider(QtWidgets.QWidget):
 
     def __init__(
             self,
-            weights, colors=None, texts=None, orientation=None,
+            weights, colors=None, texts=None, data=None, orientation=None,
             graduation=DEFAULT_GRADUATION, parent=None):
         """
         @weights: List[float]
@@ -92,11 +94,12 @@ class WeightSlider(QtWidgets.QWidget):
             released
 
         """
-        _args_sanity_check(weights, colors, texts, graduation)
+        _args_sanity_check(weights, colors, texts, data, graduation)
 
         super().__init__(parent=parent)
         self._colors = colors or BUILTIN_COLORS[:len(weights)]
         self._texts = texts or [''] * len(weights)
+        self._data = data or [None] * len(weights)
         self._orientation = orientation or QtCore.Qt.Horizontal
         self._graduation = max((graduation, len(weights)))
         self._rects = []
@@ -143,6 +146,10 @@ class WeightSlider(QtWidgets.QWidget):
         return self._texts[:]
 
     @property
+    def data(self):
+        return self._data[:]
+
+    @property
     def horizontal(self):
         return self._orientation == QtCore.Qt.Horizontal
 
@@ -156,25 +163,29 @@ class WeightSlider(QtWidgets.QWidget):
         self.ratios = to_ratios(weights)
         self.update_geometries()
 
-    def set_values(self, weights, colors=None, texts=None, graduation=None):
+    def set_values(
+            self, weights, colors=None, texts=None, data=None,
+             graduation=None):
         graduation = graduation or self._graduation
-        _args_sanity_check(weights, colors, texts, graduation)
+        _args_sanity_check(weights, colors, texts, data, graduation)
         self.ratios = to_ratios(weights)
-        self._colors = colors
-        self._texts = texts
+        self._colors = colors or BUILTIN_COLORS[:len(weights)]
+        self._texts = texts or [''] * len(weights)
+        self._data = data or [None] * len(weights)
         self.update_geometries()
         self.repaint()
 
     @_skip_if_not_editable
-    def append_weight(self, color=None, text=None):
+    def append_weight(self, color=None, text=None, data=None):
         try:
             color = color or next(
                 c for c in BUILTIN_COLORS if c not in self._colors)
         except StopIteration:
             color = random_hexcolor()
-
+        print(data)
         self._colors.append(color)
         self._texts.append(text or '')
+        self._data.append(data)
         self.ratios = append_ratio(self.ratios, self._graduation)
         self.update_geometries()
         self.repaint()
@@ -191,6 +202,7 @@ class WeightSlider(QtWidgets.QWidget):
     def remove_weight(self, index):
         self._colors.pop(index)
         self._texts.pop(index)
+        self._data.pop(index)
         self.ratios = remove_ratio(self.ratios, index, self._graduation)
         self.update_geometries()
         self.repaint()
@@ -216,9 +228,11 @@ class WeightSlider(QtWidgets.QWidget):
         self._pressed_button = None
         if not self.editable:
             return
+        data = base64.b64decode(event.mimeData().data('data').toBase64())
         self.append_weight(
             color=event.mimeData().colorData(),
-            text=event.mimeData().text())
+            text=event.mimeData().text(),
+            data=json.loads(data) if data else None)
         return event.accept()
 
     def mousePressEvent(self, event):
@@ -258,7 +272,8 @@ class WeightSlider(QtWidgets.QWidget):
             mime = QtCore.QMimeData()
             mime.setColorData(self._colors[self._drag_index])
             mime.setText(self._texts[self._drag_index])
-            mime.setData('index', QtCore.QByteArray(str(self._drag_index)))
+            data = self.data[self._drag_index]
+            mime.setData('data', QtCore.QByteArray(json.dumps(data)))
             mime.setParent(self)
             drag = QtGui.QDrag(self)
             drag.setMimeData(mime)
@@ -310,17 +325,15 @@ class WeightSlider(QtWidgets.QWidget):
         return super().resizeEvent(event)
 
 
-def _args_sanity_check(weights, colors, texts, graduation):
+def _args_sanity_check(weights, colors, texts, data, graduation):
     """This function assert the arguments to build a slider is valid"""
     _sanity_weights(weights, graduation)
-    if colors is not None and len(colors) != len(weights):
-        raise ValueError(
-            'Numbers of specified colors does not '
-            'matchs with number of weights')
-    if texts is not None and len(texts) != len(weights):
-        raise ValueError(
-            'Numbers of specified texts does not '
-            'matchs with number of weights')
+    to_check = {'data': data, 'colors': colors, 'texts': texts}
+    for name, elements in to_check.items():
+        if elements is not None and len(elements) != len(weights):
+            raise ValueError(
+                f'Numbers of specified {name} does not '
+                'matchs with number of weights')
 
 
 def _sanity_weights(weights, graduation):
