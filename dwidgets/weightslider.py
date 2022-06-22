@@ -260,7 +260,7 @@ class WeightSlider(QtWidgets.QWidget):
         elif event.button() == QtCore.Qt.RightButton and self.context_menu:
             if not self.weights:
                 return
-            self.context_menu.exec(self.mapFromGlobal(event.pos()))
+            self.context_menu.exec(self.mapToGlobal(event.pos()))
         elif event.button() == QtCore.Qt.MiddleButton:
             if self._drag_index is not None:
                 self.remove_weight(self._drag_index)
@@ -412,7 +412,10 @@ def draw_slider(
                 painter.setPen(QtCore.Qt.black)
                 painter.setBrush(QtCore.Qt.black)
                 full_rect.setRight(full_rect.right() - r.width())
-                painter.drawText(full_rect, QtCore.Qt.AlignCenter, text)
+                text = QtGui.QStaticText(text)
+                x = full_rect.center().x() - (text.size().width() / 2)
+                y = full_rect.center().y() - (text.size().height() / 2)
+                painter.drawStaticText(int(x), int(y), text)
         painter.setPen(QtCore.Qt.transparent)
         r = build_rect_with_padding(r, padding)
         brush = QtGui.QBrush(qcolor)
