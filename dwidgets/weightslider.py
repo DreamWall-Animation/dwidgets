@@ -6,6 +6,7 @@ import random
 
 DEFAULT_PADDING = 1.5
 DEFAULT_GRADUATION = 20
+BALLON_COLOR = 'yellow'
 BORDER_COLOR = 'darkorange'
 GRADUATION_COLOR = 'white'
 BUILTIN_COLORS = [
@@ -49,8 +50,8 @@ class WeightSlider(QtWidgets.QWidget):
 
     def __init__(
             self,
-            weights, colors=None, texts=None, data=None, orientation=None,
-            graduation=DEFAULT_GRADUATION, parent=None):
+            weights, colors=None, texts=None, data=None, comments=None,
+            orientation=None, graduation=DEFAULT_GRADUATION, parent=None):
         """
         @weights: List[float]
             Sum of weight must be 1.0.
@@ -63,6 +64,13 @@ class WeightSlider(QtWidgets.QWidget):
             Only affects vertical sliders which has the attribute
             'display_texts' set as True.
             Display a column on the left the display texts.
+        @data: List[Any]|None.
+            Give possibility to link any data to each value. data MUST be JSON
+            serializable.
+        @comments: List[str]|None,
+            Gives an editable comment to each value.
+            Only affects vertical sliders which has the attribute
+            'display_comment' set as True.
         @orientation: QtCore.Qt.Direction|None
             Possible values: QtCore.Qt.Vertical or QtCore.Qt.Horizontal
             Default is Horizontal.
@@ -94,11 +102,12 @@ class WeightSlider(QtWidgets.QWidget):
             released
 
         """
-        _args_sanity_check(weights, colors, texts, data, graduation)
+        _args_sanity_check(weights, colors, texts, data, comments, graduation)
 
         super().__init__(parent=parent)
         self._colors = colors or BUILTIN_COLORS[:len(weights)]
         self._texts = texts or [''] * len(weights)
+        self._comments = comments or [''] * len(weights)
         self._data = data or [None] * len(weights)
         self._orientation = orientation or QtCore.Qt.Horizontal
         self._graduation = max((graduation, len(weights)))
@@ -110,10 +119,12 @@ class WeightSlider(QtWidgets.QWidget):
         self._pressed_button = None
 
         self.border_color = BORDER_COLOR
+        self.ballon_color = BALLON_COLOR
         self.column_width = None
         self.context_menu = None
         self.display_borders = False
         self.display_texts = False
+        self.display_ballons = False
         self.editable = True
         self.graduation_color = GRADUATION_COLOR
         self.padding = DEFAULT_PADDING
@@ -150,6 +161,10 @@ class WeightSlider(QtWidgets.QWidget):
         return self._data[:]
 
     @property
+    def comments(self):
+        return self._comments[:]
+
+    @property
     def horizontal(self):
         return self._orientation == QtCore.Qt.Horizontal
 
@@ -164,28 +179,29 @@ class WeightSlider(QtWidgets.QWidget):
         self.update_geometries()
 
     def set_values(
-            self, weights, colors=None, texts=None, data=None,
-             graduation=None):
+            self, weights, colors=None, texts=None, data=None, comments=None,
+            graduation=None):
         graduation = graduation or self._graduation
-        _args_sanity_check(weights, colors, texts, data, graduation)
+        _args_sanity_check(weights, colors, texts, data, comments, graduation)
         self.ratios = to_ratios(weights)
         self._colors = colors or BUILTIN_COLORS[:len(weights)]
         self._texts = texts or [''] * len(weights)
         self._data = data or [None] * len(weights)
+        self._comments = comments or [''] * len(weights)
         self.update_geometries()
         self.repaint()
 
     @_skip_if_not_editable
-    def append_weight(self, color=None, text=None, data=None):
+    def append_weight(self, color=None, text=None, data=None, comment=None):
         try:
             color = color or next(
                 c for c in BUILTIN_COLORS if c not in self._colors)
         except StopIteration:
             color = random_hexcolor()
-        print(data)
         self._colors.append(color)
         self._texts.append(text or '')
         self._data.append(data)
+        self._comments.append(comment)
         self.ratios = append_ratio(self.ratios, self._graduation)
         self.update_geometries()
         self.repaint()
@@ -203,6 +219,7 @@ class WeightSlider(QtWidgets.QWidget):
         self._colors.pop(index)
         self._texts.pop(index)
         self._data.pop(index)
+        self._comments.pop(index)
         self.ratios = remove_ratio(self.ratios, index, self._graduation)
         self.update_geometries()
         self.repaint()
@@ -250,9 +267,34 @@ class WeightSlider(QtWidgets.QWidget):
             rects = self._rects
         self._drag_index = point_hover_rects(rects, point)
 
+    def ballons_visible(self):
+        return (
+            self.weights and
+            self.display_ballons and
+            self._orientation == QtCore.Qt.Vertical and
+            self.display_texts)
+
+    def hovered_ballon(self, point):
+        points = build_ballon_positions(self._rects, self.padding)
+        rect = QtCore.QRect(
+            0, self._rects[0].top(),
+            self._rects[0].right() - self._rects[0].width(),
+            self._rects[0].height())
+        scale = compute_ballon_scale(rect)
+        for i, p in enumerate(points):
+            r = QtCore.QRectF(p.x(), p.y(), 90 * scale, 70 * scale)
+            if r.contains(point):
+                return i
+
     def mouseReleaseEvent(self, event):
         self._pressed_button = None
         if event.button() == QtCore.Qt.LeftButton:
+            if self.ballons_visible():
+                index = self.hovered_ballon(event.position())
+                if index is not None:
+                    self.execute_comment_dialog(index, event.position())
+                    self.repaint()
+                    return
             self.released.emit()
             self._handeling_index = None
             self.update_geometries()
@@ -307,10 +349,20 @@ class WeightSlider(QtWidgets.QWidget):
         if self._rects:
             texts = self._texts if self.display_texts else [''] * len(self._colors)
             draw_slider(
-                painter, self.rect(), self._rects, self._colors, texts,
-                self.padding, self.display_borders, self.border_color,
-                self.graduation_color, self._graduation_points,
-                self._orientation)
+                painter=painter,
+                rect=self.rect(),
+                rects=self._rects,
+                colors=self._colors,
+                texts=texts,
+                padding=self.padding,
+                draw_borders=self.display_borders,
+                border_color=self.border_color,
+                show_ballons=self.ballons_visible(),
+                ballon_color=self.ballon_color,
+                fill_ballons=[bool(c) for c in self.comments],
+                graduations=self._graduation_points,
+                graduation_color=self.graduation_color,
+                orientation=self._orientation)
         else:
             draw_empty_slider(
                 painter,
@@ -324,11 +376,45 @@ class WeightSlider(QtWidgets.QWidget):
         self.update_geometries()
         return super().resizeEvent(event)
 
+    def execute_comment_dialog(self, index, position):
+        dialog = CommentDialog(self.comments[index])
+        dialog.move(self.mapToGlobal(position.toPoint()))
+        if dialog.exec() != QtWidgets.QDialog.Accepted:
+            return
+        self._comments[index] = dialog.comment
 
-def _args_sanity_check(weights, colors, texts, data, graduation):
+
+class CommentDialog(QtWidgets.QDialog):
+    def __init__(self, comment, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Set comment')
+        self.text = QtWidgets.QPlainTextEdit()
+        self.text.setPlainText(comment)
+        self.ok = QtWidgets.QPushButton('Ok')
+        self.ok.released.connect(self.accept)
+        self.cancel = QtWidgets.QPushButton('Cancel')
+        self.cancel.released.connect(self.reject)
+
+        self.layout_btn = QtWidgets.QHBoxLayout()
+        self.layout_btn.addWidget(self.ok)
+        self.layout_btn.addWidget(self.cancel)
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.addWidget(self.text)
+        self.layout.addLayout(self.layout_btn)
+
+    @property
+    def comment(self):
+        return self.text.toPlainText()
+
+
+def _args_sanity_check(weights, colors, texts, data, comments, graduation):
     """This function assert the arguments to build a slider is valid"""
     _sanity_weights(weights, graduation)
-    to_check = {'data': data, 'colors': colors, 'texts': texts}
+
+    to_check = {
+        'data': data, 'colors': colors, 'texts': texts, 'comments': comments}
+
     for name, elements in to_check.items():
         if elements is not None and len(elements) != len(weights):
             raise ValueError(
@@ -337,6 +423,10 @@ def _args_sanity_check(weights, colors, texts, data, graduation):
 
 
 def _sanity_weights(weights, graduation):
+    """
+    Ensure the number of weights is no longer than graduation and its sum is
+    equal 1.0.
+    """
     if not weights:
         return
     if graduation is not None and len(weights) > graduation:
@@ -393,10 +483,47 @@ def draw_empty_slider(painter, rect, padding, draw_borders, border_color):
     painter.drawRoundedRect(build_rect_with_padding(rect, padding), 8, 8)
 
 
+def get_comment_path(position, scale=1):
+    """
+    Build the shape of comment icon as QPainterPath.
+     _____
+    /     \
+    \   __/
+     |/
+
+    """
+    path = QtGui.QPainterPath(QtCore.QPointF(20, 50))
+    path.setFillRule(QtCore.Qt.WindingFill)
+    path.lineTo(20, 70)
+    path.lineTo(30, 50)
+    path.lineTo(80, 50)
+    path.cubicTo(85, 50, 90, 45, 90, 40)
+    path.lineTo(90, 10)
+    path.cubicTo(90, 5, 85, 0, 80, 0)
+    path.lineTo(10, 0)
+    path.cubicTo(5, 0, 0, 5, 0, 10)
+    path.lineTo(0, 40)
+    path.cubicTo(0, 45, 5, 50, 10, 50)
+    path.closeSubpath()
+
+    path.moveTo(15, 12)
+    path.lineTo(72, 12)
+    path.moveTo(15, 24)
+    path.lineTo(72, 24)
+    path.moveTo(15, 36)
+    path.lineTo(72, 36)
+
+    transform = QtGui.QTransform()
+    if position:
+        transform.translate(position.x(), position.y())
+    transform.scale(scale, scale)
+    return transform.map(path)
+
 
 def draw_slider(
         painter, rect, rects, colors, texts, padding, draw_borders,
-        border_color, graduation_color, graduations, orientation):
+        border_color, show_ballons, fill_ballons, ballon_color, graduations,
+        graduation_color, orientation):
 
     for r, color, text in zip(rects, colors, texts):
         painter.setPen(QtCore.Qt.transparent)
@@ -424,28 +551,71 @@ def draw_slider(
         painter.drawRoundedRect(r, 8, 8)
 
     if graduations:
-        color = QtGui.QColor(graduation_color)
-        color.setAlpha(150)
-        pen = QtGui.QPen(color)
-        pen.setWidth(1)
-        painter.setPen(pen)
-        painter.setBrush(QtGui.QBrush(color))
-        for point in graduations:
-            if orientation == QtCore.Qt.Horizontal:
-                start = QtCore.QPoint(point.x(), r.top())
-                end = QtCore.QPoint(point.x(), r.height() + (padding * 2))
-            else:
-                start = QtCore.QPoint(r.left(), point.y())
-                end = QtCore.QPoint(r.right(), point.y())
-            painter.drawLine(start, end)
+        draw_graduation(
+            painter, r, orientation, graduations, padding, graduation_color)
 
-    if not draw_borders:
-        return
-    pen = QtGui.QPen(QtGui.QColor(border_color))
-    pen.setWidthF(3)
+    if draw_borders:
+        pen = QtGui.QPen(QtGui.QColor(border_color))
+        pen.setWidthF(3)
+        painter.setPen(pen)
+        painter.setBrush(QtCore.Qt.transparent)
+        painter.drawRoundedRect(build_rect_with_padding(rect, padding), 8, 8)
+
+    if show_ballons:
+        draw_ballons(painter, rects, padding, fill_ballons, ballon_color)
+
+
+def draw_graduation(painter, rect, orientation, points, padding, color):
+    color = QtGui.QColor(color)
+    color.setAlpha(150)
+    pen = QtGui.QPen(color)
+    pen.setWidth(1)
     painter.setPen(pen)
-    painter.setBrush(QtCore.Qt.transparent)
-    painter.drawRoundedRect(build_rect_with_padding(rect, padding), 8, 8)
+    painter.setBrush(QtGui.QBrush(color))
+    for point in points:
+        if orientation == QtCore.Qt.Horizontal:
+            start = QtCore.QPoint(point.x(), rect.top())
+            end = QtCore.QPoint(point.x(), rect.height() + (padding * 2))
+        else:
+            start = QtCore.QPoint(rect.left(), point.y())
+            end = QtCore.QPoint(rect.right(), point.y())
+        painter.drawLine(start, end)
+
+
+def draw_ballons(painter, rects, padding, fill_ballons, ballon_color):
+    pen = QtGui.QPen()
+    pen.setWidthF(2)
+    pen.setJoinStyle(QtCore.Qt.MiterJoin)
+    pen.setCapStyle(QtCore.Qt.RoundCap)
+    centers = build_ballon_positions(rects, padding)
+    rect = QtCore.QRect(
+        0, rects[0].top(),
+        rects[0].right() - rects[0].width(),
+        rects[0].height())
+    scale = compute_ballon_scale(rect)
+    for center, filled in zip(centers, fill_ballons):
+        if filled:
+            bg_color = QtGui.QColor(ballon_color)
+            bg_color.setAlpha(50)
+            border_color = QtGui.QColor('#222222')
+        else:
+            bg_color = QtGui.QColor(0, 0, 0, 0)
+            border_color = QtGui.QColor(0, 0, 0, 35)
+
+        painter.setBrush(bg_color)
+        pen.setColor(border_color)
+        painter.setPen(pen)
+        painter.drawPath(get_comment_path(center, scale))
+
+
+def compute_ballon_scale(rect):
+    return 0.5 if rect.width() > 120 else (rect.width() / 120) * 0.5
+
+
+def build_ballon_positions(rects, padding):
+    rects = [QtCore.QRectF(0, r.top(), r.width(), r.height()) for r in rects]
+    padding = QtCore.QPoint(padding * 6, padding * 6)
+    return [rect.topLeft() + padding for rect in rects]
 
 
 def build_slider_rects(rect, weights, horizontal=True, column_width=None):
