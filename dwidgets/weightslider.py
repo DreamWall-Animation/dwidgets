@@ -320,6 +320,7 @@ class WeightSlider(QtWidgets.QWidget):
             mime.setText(self._texts[self._drag_index])
             data = self.data[self._drag_index]
             mime.setData('data', QtCore.QByteArray(json.dumps(data)))
+            mime.setData('index', QtCore.QByteArray(bytes(self._drag_index)))
             mime.setParent(self)
             drag = QtGui.QDrag(self)
             drag.setMimeData(mime)
