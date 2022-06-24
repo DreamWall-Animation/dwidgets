@@ -6,7 +6,9 @@ import random
 
 DEFAULT_PADDING = 1.5
 DEFAULT_GRADUATION = 20
-BALLON_COLOR = 'yellow'
+BALLON_BACKGROUND_COLOR = 'yellow'
+BALLON_FILLED_BORDER_COLOR = 'black'
+BALLON_EMPTY_BORDER_COLOR = 'white'
 BORDER_COLOR = 'darkorange'
 GRADUATION_COLOR = 'white'
 BUILTIN_COLORS = [
@@ -119,7 +121,9 @@ class WeightSlider(QtWidgets.QWidget):
         self._pressed_button = None
 
         self.border_color = BORDER_COLOR
-        self.ballon_color = BALLON_COLOR
+        self.ballon_background_color = BALLON_BACKGROUND_COLOR
+        self.ballon_filled_border_color = BALLON_FILLED_BORDER_COLOR
+        self.ballon_empty_border_color = BALLON_EMPTY_BORDER_COLOR
         self.column_width = None
         self.context_menu = None
         self.display_borders = False
@@ -357,12 +361,18 @@ class WeightSlider(QtWidgets.QWidget):
                 padding=self.padding,
                 draw_borders=self.display_borders,
                 border_color=self.border_color,
-                show_ballons=self.ballons_visible(),
-                ballon_color=self.ballon_color,
-                fill_ballons=[bool(c) for c in self.comments],
                 graduations=self._graduation_points,
                 graduation_color=self.graduation_color,
                 orientation=self._orientation)
+            if self.ballons_visible():
+                draw_ballons(
+                    painter=painter,
+                    rects=self._rects,
+                    padding=self.padding,
+                    fill_ballons=[bool(c) for c in self.comments],
+                    background_color=self.ballon_background_color,
+                    filled_border_color=self.ballon_filled_border_color,
+                    empty_border_color=self.ballon_empty_border_color)
         else:
             draw_empty_slider(
                 painter,
@@ -522,8 +532,7 @@ def get_comment_path(position, scale=1):
 
 def draw_slider(
         painter, rect, rects, colors, texts, padding, draw_borders,
-        border_color, show_ballons, fill_ballons, ballon_color, graduations,
-        graduation_color, orientation):
+        border_color, graduations, graduation_color, orientation):
 
     for r, color, text in zip(rects, colors, texts):
         painter.setPen(QtCore.Qt.transparent)
@@ -561,9 +570,6 @@ def draw_slider(
         painter.setBrush(QtCore.Qt.transparent)
         painter.drawRoundedRect(build_rect_with_padding(rect, padding), 8, 8)
 
-    if show_ballons:
-        draw_ballons(painter, rects, padding, fill_ballons, ballon_color)
-
 
 def draw_graduation(painter, rect, orientation, points, padding, color):
     color = QtGui.QColor(color)
@@ -582,7 +588,9 @@ def draw_graduation(painter, rect, orientation, points, padding, color):
         painter.drawLine(start, end)
 
 
-def draw_ballons(painter, rects, padding, fill_ballons, ballon_color):
+def draw_ballons(
+        painter, rects, padding, fill_ballons, background_color,
+        filled_border_color, empty_border_color):
     pen = QtGui.QPen()
     pen.setWidthF(2)
     pen.setJoinStyle(QtCore.Qt.MiterJoin)
@@ -595,12 +603,13 @@ def draw_ballons(painter, rects, padding, fill_ballons, ballon_color):
     scale = compute_ballon_scale(rect)
     for center, filled in zip(centers, fill_ballons):
         if filled:
-            bg_color = QtGui.QColor(ballon_color)
+            bg_color = QtGui.QColor(background_color)
             bg_color.setAlpha(50)
-            border_color = QtGui.QColor('#222222')
+            border_color = QtGui.QColor(filled_border_color)
         else:
             bg_color = QtGui.QColor(0, 0, 0, 0)
-            border_color = QtGui.QColor(0, 0, 0, 35)
+            border_color = QtGui.QColor(empty_border_color)
+            border_color.setAlpha(50)
 
         painter.setBrush(bg_color)
         pen.setColor(border_color)
@@ -609,7 +618,7 @@ def draw_ballons(painter, rects, padding, fill_ballons, ballon_color):
 
 
 def compute_ballon_scale(rect):
-    return 0.5 if rect.width() > 120 else (rect.width() / 120) * 0.5
+    return 0.4 if rect.width() > 120 else (rect.width() / 120) * 0.4
 
 
 def build_ballon_positions(rects, padding):
