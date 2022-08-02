@@ -443,8 +443,11 @@ def _sanity_weights(weights, graduation):
     if graduation is not None and len(weights) > graduation:
         msg = 'Weights number cant be longer than graduation.'
         raise ValueError(msg)
-    if to_ratios(weights)[-1] != 1.0:
+    if to_ratios(weights)[-1] != 1.0 or sum(weights) != 1:
         raise ValueError('Sum of weigths has to be equal to 1.0')
+    for weight in weights:
+        if not (0 < weight <= 1):
+            raise ValueError('Slider weight must be between 0 and 1')
 
 
 def point_hover_handles(handles, point, width):
