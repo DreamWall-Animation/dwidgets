@@ -1,4 +1,4 @@
-from PySide6 import QtWidgets, QtCore, QtGui
+from PySide2 import QtWidgets, QtCore, QtGui
 
 DEFAULT_PADDING = 5
 DEFAULT_CELL_PADDING = 0
@@ -153,7 +153,7 @@ class TagView(QtWidgets.QWidget):
             return
         self.left_clicked = False
         for i, (_, _, rect) in enumerate(self._items):
-            if rect.contains(event.position().toPoint()):
+            if rect.contains(event.pos().toPoint()):
                 self.pop(i)
                 return
 

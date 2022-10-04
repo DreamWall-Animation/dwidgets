@@ -1,6 +1,6 @@
 import os, sys
 from datetime import date, timedelta
-from PySide6 import QtWidgets, QtGui
+from PySide2 import QtWidgets, QtGui
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 

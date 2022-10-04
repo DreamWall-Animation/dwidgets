@@ -1,6 +1,6 @@
 
-import datetime
-from PySide6 import QtWidgets, QtCore
+
+from PySide2 import QtWidgets, QtCore
 
 
 class CalendarDialog(QtWidgets.QDialog):

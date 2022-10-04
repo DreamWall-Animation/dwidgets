@@ -1,6 +1,6 @@
 import base64
 import json
-from PySide6 import QtWidgets, QtCore, QtGui
+from PySide2 import QtWidgets, QtCore, QtGui
 import random
 
 
@@ -258,7 +258,7 @@ class WeightSlider(QtWidgets.QWidget):
 
     def mousePressEvent(self, event):
         self._pressed_button = event.button()
-        point = event.position()
+        point = event.pos()
         width = self.padding * 3
         self._handeling_index = point_hover_handles(self._handles, point, width)
         if self._handeling_index is not None:
@@ -294,9 +294,9 @@ class WeightSlider(QtWidgets.QWidget):
         self._pressed_button = None
         if event.button() == QtCore.Qt.LeftButton:
             if self.ballons_visible():
-                index = self.hovered_ballon(event.position())
+                index = self.hovered_ballon(event.pos())
                 if index is not None:
-                    self.execute_comment_dialog(index, event.position())
+                    self.execute_comment_dialog(index, event.pos())
                     self.repaint()
                     return
             self.released.emit()
@@ -324,13 +324,13 @@ class WeightSlider(QtWidgets.QWidget):
             mime.setParent(self)
             drag = QtGui.QDrag(self)
             drag.setMimeData(mime)
-            drag.setHotSpot(event.position().toPoint() - self.rect().topLeft())
+            drag.setHotSpot(event.pos().toPoint() - self.rect().topLeft())
             drag.exec(QtCore.Qt.CopyAction)
             self._drag_index = None
             return
 
         if self._handeling_index is None:
-            cursor = self.get_mouse_cursor(event.position())
+            cursor = self.get_mouse_cursor(event.pos())
             if cursor:
                 QtWidgets.QApplication.setOverrideCursor(cursor)
             else:
@@ -338,7 +338,7 @@ class WeightSlider(QtWidgets.QWidget):
             return
 
         index = self._handeling_index
-        ratio = to_ratio(self.rect(), event.position(), self.horizontal)
+        ratio = to_ratio(self.rect(), event.pos(), self.horizontal)
         self.ratios = set_ratio_at(index, ratio, self.ratios)
         if self._graduation is not None:
             self.ratios = graduate(self.ratios, self._graduation)

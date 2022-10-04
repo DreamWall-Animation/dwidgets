@@ -1,5 +1,5 @@
 
-from PySide6 import QtCore, QtWidgets, QtGui
+from PySide2 import QtCore, QtWidgets, QtGui
 
 DEFAULT_ROTATION_ANGLE = 90
 DEFAULT_DISPLAY_DATE_FORMAT = '%d %A %y'
