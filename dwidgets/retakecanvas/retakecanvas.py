@@ -1,16 +1,15 @@
 
 import os
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from functools import partial
 from PySide2 import QtWidgets, QtCore, QtGui
+
 from dwidgets.retakecanvas.canvas import Canvas
+from dwidgets.retakecanvas.layers import LayerStack
 from dwidgets.retakecanvas.tools import (
     Navigator, NavigationTool, ArrowTool, CircleTool, RectangleTool, DrawTool)
 from dwidgets.retakecanvas.viewport import ViewportMapper
 
 
-UNDOLIMIT = 50
 COLORS = [
     'red', '#141923', '#414168', '#3a7fa7', '#35e3e3', '#8fd970',
     '#5ebb49', '#458352', '#dcd37b', '#fffee5', '#ffd035', '#cc9245',
@@ -28,115 +27,6 @@ def set_shortcut(keysequence, parent, method, context=None):
     shortcut.setContext(context or QtCore.Qt.WidgetWithChildrenShortcut)
     shortcut.activated.connect(method)
     return shortcut
-
-
-class LayerStack:
-
-    def __init__(self):
-        super().__init__()
-        self.layers = []
-        self.visibilities = []
-        self.opacities = []
-        self.current_index = None
-        self.wash_color = '#FFFFFF'
-        self.wash_opacity = 0
-        self.undostack = []
-        self.redostack = []
-        self.undo_index = 0
-        self.add_undo_state()
-
-    def add(self):
-        self.layers.append([])
-        self.visibilities.append(True)
-        self.opacities.append(255)
-        self.current_index = len(self.layers) - 1
-        self.add_undo_state()
-
-    def set_current(self, index):
-        self.current_index = index
-
-    @property
-    def current(self):
-        if self.current_index is None:
-            return
-        return self.layers[self.current_index]
-
-    def remove(self, element):
-        if self.current:
-            self.current.remove(element)
-        self.add_undo_state()
-
-    def delete(self, index=None):
-        if not index and self.current:
-            index = self.layers.index(self.current)
-        if not index:
-            return
-        if index != self.current_index:
-            return
-        self.layers.pop(index)
-        self.visibilities.pop(index)
-        self.opacities.pop(index)
-
-        if not self.layers:
-            self.current = None
-            self.add_undo_state()
-            return
-        self.current = self.layers[index - 1]
-        self.add_undo_state()
-
-    def get_undo_index(self):
-        self.undo_index += 1
-        return self.undo_index
-
-    def add_undo_state(self):
-        self.redostack = []
-        state = {
-            'index': self.get_undo_index(),
-            'layers': [[elt.copy() for elt in layer] for layer in self.layers],
-            'opacities': self.opacities.copy(),
-            'visibilities': self.visibilities.copy(),
-            'current': self.current_index,
-            'wash_color': self.wash_color,
-            'wash_opacity': self.wash_opacity
-        }
-        self.undostack.append(state)
-        self.undostack = self.undostack[-UNDOLIMIT:]
-
-    def restore_state(self, state):
-        layers = [[elt.copy() for elt in layer] for layer in state['layers']]
-        self.layers = layers
-        self.current_index = state['current']
-        self.wash_color = state['wash_color']
-        self.wash_opacity = state['wash_opacity']
-        self.visibilities = state['visibilities']
-        self.opacities = state['opacities']
-
-    def undo(self):
-        if not self.undostack:
-            return
-
-        state = self.undostack.pop()
-        self.redostack.append(state)
-        if self.undostack:
-            self.restore_state(self.undostack[-1])
-        else:
-            self.restore_state({
-                'layers': [],
-                'opacities': [],
-                'visibilities': [],
-                'current': None,
-                'wash_color': '#FFFFFF',
-                'wash_opacity': 0})
-
-    def redo(self):
-        if not self.redostack:
-            return
-        state = self.redostack.pop()
-        self.undostack.append(state)
-        self.restore_state(state)
-
-    def __iter__(self):
-        return zip(self.layers, self.visibilities, self.opacities).__iter__()
 
 
 class Switcher(QtWidgets.QAbstractButton):
@@ -176,11 +66,10 @@ class Current(Switcher):
     off_char = '◯'
 
     def mouseReleaseEvent(self, event):
-        if event.button() == QtCore.Qt.LeftButton:
-            if not self.isChecked():
-                self.setChecked(True)
-                self.switched.emit(True)
-                self.repaint()
+        if event.button() == QtCore.Qt.LeftButton and not self.isChecked():
+            self.setChecked(True)
+            self.switched.emit(True)
+            self.repaint()
 
 
 class LayerLine(QtWidgets.QWidget):
@@ -560,14 +449,14 @@ class RetakeCanvas(QtWidgets.QWidget):
         settings_layout.addSpacing(default_spacing)
         settings_layout.addWidget(self.setting_widgets[self.arrow])
 
-        left_widget = QtWidgets.QWidget()
-        left_layout = QtWidgets.QVBoxLayout(left_widget)
+        self.left_widget = QtWidgets.QWidget()
+        left_layout = QtWidgets.QVBoxLayout(self.left_widget)
         left_layout.addLayout(settings_layout)
         left_layout.addWidget(self.layerview)
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         splitter.addWidget(self.canvas)
-        splitter.addWidget(left_widget)
+        splitter.addWidget(self.left_widget)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 1)
 
@@ -607,20 +496,24 @@ class RetakeCanvas(QtWidgets.QWidget):
         else:
             self.canvas.keyPressEvent(event)
 
-    def enable_retake(self):
+    def enable_retake_mode(self):
+        self.left_widget.show()
         self.layerview.show()
         self.tools_bar.show()
+        self.navigation.trigger()
 
-    def disable_retake(self):
+    def disable_retake_mode(self):
+        self.left_widget.hide()
+        self.navigation.trigger()
         self.layerview.hide()
         self.tools_bar.hide()
-        self.navigation.trigger()
 
     def keyReleaseEvent(self, event):
         return self.canvas.keyReleaseEvent(event)
 
     def set_baseimage(self, image):
         self.canvas.set_baseimage(image)
+        self.canvas.repaint()
 
     def set_tool(self):
         action = self.tools_group.checkedAction()
@@ -631,6 +524,11 @@ class RetakeCanvas(QtWidgets.QWidget):
 
     def set_layerstack(self, layerstack):
         self.layerstack = layerstack
+        self.layerview.layerstack = layerstack
+        self.canvas.layerstack = layerstack
+        for widget in self.tools.values():
+            widget.layerstack = layerstack
+        self.canvas.repaint()
         self.layerview.sync_layers()
 
 
