@@ -15,6 +15,7 @@ class PopupCheckList(QtWidgets.QPushButton):
         menu_layout.setSpacing(0)
         self.menu.setLayout(menu_layout)
         self.list_widget = QtWidgets.QListWidget()
+        self.list_widget.itemClicked.connect(self._toggle_checkbox)
         menu_layout.addWidget(self.list_widget)
 
         clear_btn = QtWidgets.QPushButton(
@@ -23,8 +24,15 @@ class PopupCheckList(QtWidgets.QPushButton):
         all_btn = QtWidgets.QPushButton(
             'all', clicked=self.check_all, maximumHeight=30)
         menu_layout.addWidget(all_btn)
+        all_btn = QtWidgets.QPushButton(
+            'invert', clicked=self.invert, maximumHeight=30)
+        menu_layout.addWidget(all_btn)
 
         self.clicked.connect(self.popup)
+
+    def _toggle_checkbox(self, item):
+        cb = self.list_widget.itemWidget(item)
+        cb.setChecked(not cb.isChecked())
 
     def _set_text(self):
         labels = self.checked_items_labels()
@@ -60,6 +68,9 @@ class PopupCheckList(QtWidgets.QPushButton):
     def uncheck_all(self):
         [cb.setChecked(False) for cb in self.checkboxes]
 
+    def invert(self):
+        [cb.setChecked(not cb.isChecked()) for cb in self.checkboxes]
+
     def popup(self):
         if not self.checkboxes:
             return
@@ -68,7 +79,6 @@ class PopupCheckList(QtWidgets.QPushButton):
         checkbox_height = self.checkboxes[0].height() + 2
         pos = self.pos()
         self.list_widget.setMinimumHeight(min(
-            self.list_widget.count() * checkbox_height,
-            parent.height() - self.pos().y() - 200))
+            self.list_widget.count() * checkbox_height, parent.height() / 3))
         pos.setY(pos.y() + self.height())
         self.menu.popup(parent.mapToGlobal(pos))
