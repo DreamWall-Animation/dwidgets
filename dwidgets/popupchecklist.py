@@ -9,24 +9,29 @@ class PopupCheckList(QtWidgets.QPushButton):
 
         self.checkboxes = []
 
+        self.list_widget = QtWidgets.QListWidget()
+        self.list_widget.itemClicked.connect(self._toggle_checkbox)
+        clear_btn = QtWidgets.QPushButton(
+            'clear', clicked=self.uncheck_all,
+            maximumHeight=30, minimumWidth=60)
+        invert_btn = QtWidgets.QPushButton(
+            'invert', clicked=self.invert,
+            maximumHeight=30, minimumWidth=60)
+        all_btn = QtWidgets.QPushButton(
+            'all', clicked=self.check_all,
+            maximumHeight=30, minimumWidth=60)
+
         self.menu = QtWidgets.QMenu()
         menu_layout = QtWidgets.QVBoxLayout()
         menu_layout.setContentsMargins(0, 0, 0, 0)
         menu_layout.setSpacing(0)
         self.menu.setLayout(menu_layout)
-        self.list_widget = QtWidgets.QListWidget()
-        self.list_widget.itemClicked.connect(self._toggle_checkbox)
         menu_layout.addWidget(self.list_widget)
-
-        clear_btn = QtWidgets.QPushButton(
-            'clear', clicked=self.uncheck_all, maximumHeight=30)
-        menu_layout.addWidget(clear_btn)
-        all_btn = QtWidgets.QPushButton(
-            'all', clicked=self.check_all, maximumHeight=30)
-        menu_layout.addWidget(all_btn)
-        all_btn = QtWidgets.QPushButton(
-            'invert', clicked=self.invert, maximumHeight=30)
-        menu_layout.addWidget(all_btn)
+        buttons_layout = QtWidgets.QHBoxLayout()
+        menu_layout.addLayout(buttons_layout)
+        buttons_layout.addWidget(clear_btn)
+        buttons_layout.addWidget(invert_btn)
+        buttons_layout.addWidget(all_btn)
 
         self.clicked.connect(self.popup)
 
