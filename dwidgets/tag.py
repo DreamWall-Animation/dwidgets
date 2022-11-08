@@ -153,7 +153,7 @@ class TagView(QtWidgets.QWidget):
             return
         self.left_clicked = False
         for i, (_, _, rect) in enumerate(self._items):
-            if rect.contains(event.pos().toPoint()):
+            if rect.contains(event.pos()):
                 self.pop(i)
                 return
 
@@ -191,6 +191,7 @@ class TagView(QtWidgets.QWidget):
 def get_items(rect, statictexts, spacing, cell_padding):
     if not statictexts:
         return []
+
     item_text_cross_rects = []
     x, y = rect.left(), rect.top()
     height = statictexts[0].size().height() + (2 * cell_padding)
@@ -240,7 +241,7 @@ def mult_rect(rect, value):
     height = rect.height() * value
     left = rect.left() + ((rect.width() - width) / 2)
     top = rect.top() + ((rect.height() - height) / 2)
-    return QtCore.QRectF(left, top , width, height)
+    return QtCore.QRectF(left, top, width, height)
 
 
 if __name__ == "__main__":
@@ -249,4 +250,4 @@ if __name__ == "__main__":
     win.tags = 'peanuts', 'bourito', 'parapat', 'esmeraldaisthebestwomanever', 'olivier', 'parapa', 'theipper'
     win.style = 'font-size:15px; color: #dddddd; font-style:bold; justify-content: center'
     win.show()
-    app.exec()
+    app.exec_()
