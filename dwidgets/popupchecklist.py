@@ -41,6 +41,8 @@ class PopupCheckList(QtWidgets.QPushButton):
         if event.type() == QtCore.QEvent.MouseButtonPress:
             if event.button() == Qt.MiddleButton:
                 self.uncheck_all()
+            elif event.button() == Qt.RightButton:
+                self.invert()
         return super().mousePressEvent(event)
 
     def _toggle_checkbox(self, item):
