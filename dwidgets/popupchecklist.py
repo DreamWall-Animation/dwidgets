@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from PySide2 import QtWidgets, QtCore
 
 
@@ -64,17 +65,27 @@ class PopupCheckList(QtWidgets.QPushButton):
     def _send_signal(self):
         self.checked_items_changed.emit(self.checked_items_labels())
 
+    @contextmanager
+    def _single_signal(self):
+        self.blockSignals(True)
+        yield
+        self.blockSignals(False)
+        self._send_signal()
+
     def checked_items_labels(self):
         return [cb.text() for cb in self.checkboxes if cb.isChecked()]
 
     def check_all(self):
-        [cb.setChecked(True) for cb in self.checkboxes]
+        with self._single_signal():
+            [cb.setChecked(True) for cb in self.checkboxes]
 
     def uncheck_all(self):
-        [cb.setChecked(False) for cb in self.checkboxes]
+        with self._single_signal():
+            [cb.setChecked(False) for cb in self.checkboxes]
 
     def invert(self):
-        [cb.setChecked(not cb.isChecked()) for cb in self.checkboxes]
+        with self._single_signal():
+            [cb.setChecked(not cb.isChecked()) for cb in self.checkboxes]
 
     def popup(self):
         if not self.checkboxes:
