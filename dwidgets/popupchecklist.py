@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from PySide2 import QtWidgets, QtCore
+from PySide2.QtCore import Qt
 
 
 class PopupCheckList(QtWidgets.QPushButton):
@@ -35,6 +36,12 @@ class PopupCheckList(QtWidgets.QPushButton):
         buttons_layout.addWidget(all_btn)
 
         self.clicked.connect(self.popup)
+
+    def mousePressEvent(self, event):
+        if event.type() == QtCore.QEvent.MouseButtonPress:
+            if event.button() == Qt.MiddleButton:
+                self.uncheck_all()
+        return super().mousePressEvent(event)
 
     def _toggle_checkbox(self, item):
         cb = self.list_widget.itemWidget(item)
