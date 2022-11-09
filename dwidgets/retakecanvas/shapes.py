@@ -1,12 +1,25 @@
 from copy import deepcopy
+from PySide2 import QtGui, QtCore
+
+
+class Bitmap:
+    def __init__(self, image, rect):
+        self.image = image
+        self.rect = rect
+
+    def offset(self, offset):
+        self.rect.moveTopLeft(self.rect.topLef() + offset)
+
+    def copy(self):
+        return Bitmap(QtGui.QImage(self.image), QtCore.QRectF(self.rect))
 
 
 class Rectangle:
-    def __init__(self, start, color):
+    def __init__(self, start, color, linewidth):
         self.start = start
         self.end = None
         self.color = color
-        self.linewidth = 3
+        self.linewidth = linewidth
 
     def handle(self, point):
         self.end = point
@@ -16,28 +29,30 @@ class Rectangle:
         return self.end is not None
 
     def copy(self):
-        rect = Rectangle(self.start, self.color)
+        rect = Rectangle(self.start, self.color, self.linewidth)
         rect.end = self.end
-        rect.linewidth = self.linewidth
         return rect
 
 
 class Circle(Rectangle):
 
     def copy(self):
-        rect = Circle(self.start, self.color)
+        rect = Circle(self.start, self.color, self.linewidth)
         rect.end = self.end
-        rect.linewidth = self.linewidth
         return rect
 
 
 class Arrow:
-    def __init__(self, start, color):
+    def __init__(self, start, color, linewidth):
         self.start = start
         self.end = None
         self.color = color
-        self.tailwidth = 3
+        self.tailwidth = linewidth
         self.headsize = 10
+
+    @property
+    def line(self):
+        return QtCore.QLineF(self.start, self.end)
 
     def handle(self, point):
         self.end = point
@@ -47,9 +62,8 @@ class Arrow:
         return self.end is not None
 
     def copy(self):
-        arrow = Arrow(self.start, self.color)
+        arrow = Arrow(self.start, self.color, self.tailwidth)
         arrow.end = self.end
-        arrow.tailwidth = self.tailwidth
         arrow.headsize = self.headsize
         return arrow
 

@@ -6,7 +6,10 @@ from PySide2 import QtWidgets, QtCore, QtGui
 from dwidgets.retakecanvas.canvas import Canvas
 from dwidgets.retakecanvas.layers import LayerStack
 from dwidgets.retakecanvas.tools import (
-    Navigator, NavigationTool, ArrowTool, CircleTool, RectangleTool, DrawTool)
+    ArrowTool, CircleTool, DrawTool, MoveTool, Navigator, NavigationTool,
+    RectangleTool, SelectionTool, SmoothDrawTool)
+from dwidgets.retakecanvas.shapes import Bitmap
+from dwidgets.retakecanvas.selection import Selection
 from dwidgets.retakecanvas.viewport import ViewportMapper
 
 
@@ -204,9 +207,9 @@ class LayerView(QtWidgets.QWidget):
             line.undoRecordRequest.connect(self.layerstack.add_undo_state)
             line.visible = visibility
             line.opacity = opacity
-            item = QtWidgets.QListWidgetItem(self.layerstackview)
+            item = QtWidgets.QListWidgetItem()
             item.setSizeHint(line.sizeHint())
-            self.layerstackview.insertItem(0, item)
+            self.layerstackview.addItem(item)
             self.layerstackview.setItemWidget(item, line)
             if i == self.layerstack.current_index:
                 line.select()
@@ -223,7 +226,7 @@ class LayerView(QtWidgets.QWidget):
         line.edited.connect(self.call_edited)
         line.selected.connect(partial(self.line_selected, line))
         line.undoRecordRequest.connect(self.layerstack.add_undo_state)
-        item = QtWidgets.QListWidgetItem(self.layerstackview)
+        item = QtWidgets.QListWidgetItem()
         item.setSizeHint(line.sizeHint())
         self.layerstackview.insertItem(0, item)
         self.layerstackview.setItemWidget(item, line)
@@ -374,6 +377,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.layerstack = LayerStack()
         self.navigator = Navigator()
         self.viewportmapper = ViewportMapper()
+        self.selection = Selection()
 
         self.layerview = LayerView(self.layerstack)
         self.layerview.edited.connect(self.repaint)
@@ -381,21 +385,30 @@ class RetakeCanvas(QtWidgets.QWidget):
             drawcontext=self.drawcontext,
             layerstack=self.layerstack,
             navigator=self.navigator,
+            selection=self.selection,
             viewportmapper=self.viewportmapper)
-
-        set_shortcut('CTRL+Z', self, self.undo)
-        set_shortcut('CTRL+Y', self, self.redo)
-        set_shortcut('F', self, self.canvas.reset)
 
         self.navigation = QtWidgets.QAction(icon('hand.png'), '', self)
         self.navigation.setCheckable(True)
         self.navigation.setChecked(True)
         self.navigation.triggered.connect(self.set_tool)
         self.navigation.tool = NavigationTool
+        self.move_a = QtWidgets.QAction(icon('move.png'), '', self)
+        self.move_a.setCheckable(True)
+        self.move_a.tool = MoveTool
+        self.move_a.triggered.connect(self.set_tool)
+        self.selection_a = QtWidgets.QAction(icon('selection.png'), '', self)
+        self.selection_a.setCheckable(True)
+        self.selection_a.tool = SelectionTool
+        self.selection_a.triggered.connect(self.set_tool)
         self.freedraw = QtWidgets.QAction(icon('freehand.png'), '', self)
         self.freedraw.setCheckable(True)
         self.freedraw.tool = DrawTool
         self.freedraw.triggered.connect(self.set_tool)
+        self.smoothdraw = QtWidgets.QAction(icon('smoothdraw.png'), '', self)
+        self.smoothdraw.setCheckable(True)
+        self.smoothdraw.tool = SmoothDrawTool
+        self.smoothdraw.triggered.connect(self.set_tool)
         self.rectangle = QtWidgets.QAction(icon('rectangle.png'), '', self)
         self.rectangle.setCheckable(True)
         self.rectangle.triggered.connect(self.set_tool)
@@ -409,22 +422,42 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.arrow.triggered.connect(self.set_tool)
         self.arrow.tool = ArrowTool
 
+        set_shortcut('CTRL+Z', self, self.undo)
+        set_shortcut('CTRL+Y', self, self.redo)
+        set_shortcut('F', self, self.canvas.reset)
+        set_shortcut('CTRL+V', self, self.paste)
+        set_shortcut('CTRL+D', self, self.selection.clear)
+        set_shortcut('M', self, self.move_a.trigger)
+        set_shortcut('B', self, self.freedraw.trigger)
+        set_shortcut('s', self, self.selection_a.trigger)
+        set_shortcut('R', self, self.rectangle.trigger)
+        set_shortcut('C', self, self.circle.trigger)
+        set_shortcut('A', self, self.arrow.trigger)
+
         kwargs = dict(
+            canvas=self.canvas,
             drawcontext=self.drawcontext,
             layerstack=self.layerstack,
             navigator=self.navigator,
+            selection=self.selection,
             viewportmapper=self.viewportmapper)
 
         self.tools = {
             self.navigation: NavigationTool(**kwargs),
+            self.move_a: MoveTool(**kwargs),
+            self.selection_a: SelectionTool(**kwargs),
             self.freedraw: DrawTool(**kwargs),
+            self.smoothdraw: SmoothDrawTool(**kwargs),
             self.rectangle: RectangleTool(**kwargs),
             self.circle: CircleTool(**kwargs),
             self.arrow: ArrowTool(**kwargs)}
 
         self.tools_group = QtWidgets.QActionGroup(self)
         self.tools_group.addAction(self.navigation)
+        self.tools_group.addAction(self.move_a)
+        self.tools_group.addAction(self.selection_a)
         self.tools_group.addAction(self.freedraw)
+        self.tools_group.addAction(self.smoothdraw)
         self.tools_group.addAction(self.rectangle)
         self.tools_group.addAction(self.circle)
         self.tools_group.addAction(self.arrow)
@@ -432,14 +465,11 @@ class RetakeCanvas(QtWidgets.QWidget):
 
         self.main_settings = GeneralSettings(self.drawcontext)
         self.setting_widgets = {
-            self.arrow: ArrowSettings(self.tools[self.arrow])}
+            self.arrow: ArrowSettings(self.tools[self.arrow]),
+            self.smoothdraw: SmoothDrawSettings(self.tools[self.smoothdraw])}
 
         self.tools_bar = QtWidgets.QToolBar()
-        self.tools_bar.addAction(self.navigation)
-        self.tools_bar.addAction(self.freedraw)
-        self.tools_bar.addAction(self.rectangle)
-        self.tools_bar.addAction(self.circle)
-        self.tools_bar.addAction(self.arrow)
+        self.tools_bar.addActions(self.tools_group.actions())
 
         settings_layout = QtWidgets.QVBoxLayout()
         default_spacing = settings_layout.spacing()
@@ -448,6 +478,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         settings_layout.addWidget(self.main_settings)
         settings_layout.addSpacing(default_spacing)
         settings_layout.addWidget(self.setting_widgets[self.arrow])
+        settings_layout.addWidget(self.setting_widgets[self.smoothdraw])
 
         self.left_widget = QtWidgets.QWidget()
         left_layout = QtWidgets.QVBoxLayout(self.left_widget)
@@ -467,8 +498,8 @@ class RetakeCanvas(QtWidgets.QWidget):
         layout.addWidget(splitter)
         self.navigation.trigger()
 
-    def render(self):
-        return self.canvas.render()
+    def render(self, layerstack=None, baseimage=None):
+        return self.canvas.render(layerstack, baseimage)
 
     def undo(self):
         self.layerstack.undo()
@@ -480,21 +511,27 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.layerview.sync_layers()
         self.canvas.repaint()
 
+    def paste(self):
+        image = QtWidgets.QApplication.clipboard().image()
+        if not image:
+            return
+        self.selection.clear()
+        self.layerstack.add(undo=False)
+        self.layerview.sync_layers()
+        rect = QtCore.QRectF(0, 0, image.size().width(), image.size().height())
+        center = self.canvas.rect().center()
+        rect.moveCenter(self.viewportmapper.to_units_coords(center))
+        self.move_a.trigger()
+        self.layerstack.current.append(Bitmap(image, rect))
+        self.layerstack.add_undo_state()
+        self.canvas.repaint()
+
+    def showEvent(self, event):
+        self.canvas.reset()
+        super().showEvent(event)
+
     def keyPressEvent(self, event):
-        if event.key() == QtCore.Qt.Key_1:
-            self.navigation.trigger()
-        elif event.key() == QtCore.Qt.Key_2:
-            self.freedraw.trigger()
-        elif event.key() == QtCore.Qt.Key_3:
-            self.rectangle.trigger()
-        elif event.key() == QtCore.Qt.Key_4:
-            self.circle.trigger()
-        elif event.key() == QtCore.Qt.Key_5:
-            self.arrow.trigger()
-        elif event.key() == QtCore.Qt.Key_F:
-            self.canvas.reset()
-        else:
-            self.canvas.keyPressEvent(event)
+        self.canvas.keyPressEvent(event)
 
     def enable_retake_mode(self):
         self.left_widget.show()
@@ -523,13 +560,14 @@ class RetakeCanvas(QtWidgets.QWidget):
             widget.setVisible(widget == self.setting_widgets.get(action))
 
     def set_layerstack(self, layerstack):
+        self.selection.clear()
         self.layerstack = layerstack
         self.layerview.layerstack = layerstack
         self.canvas.layerstack = layerstack
         for widget in self.tools.values():
             widget.layerstack = layerstack
-        self.canvas.repaint()
         self.layerview.sync_layers()
+        self.canvas.repaint()
 
 
 class GeneralSettings(QtWidgets.QWidget):
@@ -558,6 +596,22 @@ class GeneralSettings(QtWidgets.QWidget):
             return
         self.color.color = dialog.color
         self.drawcontext.color = dialog.color
+
+
+class SmoothDrawSettings(QtWidgets.QWidget):
+    def __init__(self, tool, parent=None):
+        super().__init__(parent=parent)
+        self.tool = tool
+        self.slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.slider.setMinimum(5)
+        self.slider.setMaximum(100)
+        self.slider.setValue(tool.buffer_lenght)
+        self.slider.valueChanged.connect(self.buffer_changed)
+        form = QtWidgets.QFormLayout(self)
+        form.addRow('Buffer lenght', self.slider)
+
+    def buffer_changed(self, value):
+        self.tool.buffer_lenght = value
 
 
 class ArrowSettings(QtWidgets.QWidget):
