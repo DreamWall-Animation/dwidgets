@@ -49,7 +49,7 @@ class ViewportMapper():
 
     def zoomout(self, factor=10.0):
         self.zoom -= self.zoom * factor
-        self.zoom = max(self.zoom, .1)
+        self.zoom = max(self.zoom, .025)
 
     def center_on_point(self, units_center):
         """Given current zoom and viewport size, set the origin point."""

@@ -4,7 +4,9 @@ from functools import partial
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from dwidgets.retakecanvas.canvas import Canvas
-from dwidgets.retakecanvas.layers import LayerStack
+from dwidgets.retakecanvas.layerstack import LayerStack
+from dwidgets.retakecanvas.layerstackview import LayerStackView
+from dwidgets.retakecanvas.qtutils import icon, pixmap, set_shortcut
 from dwidgets.retakecanvas.tools import (
     ArrowTool, CircleTool, DrawTool, MoveTool, Navigator, NavigationTool,
     RectangleTool, SelectionTool, SmoothDrawTool)
@@ -20,140 +22,182 @@ COLORS = [
     '#ffffff', 'black']
 
 
-def icon(filename):
-    folder = os.path.dirname(__file__)
-    return QtGui.QIcon(f'{folder}/../icons/{filename}')
+class Garbage(QtWidgets.QAbstractButton):
+    removeIndex = QtCore.Signal(int)
 
-
-def set_shortcut(keysequence, parent, method, context=None):
-    shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(keysequence), parent)
-    shortcut.setContext(context or QtCore.Qt.WidgetWithChildrenShortcut)
-    shortcut.activated.connect(method)
-    return shortcut
-
-
-class Switcher(QtWidgets.QAbstractButton):
-    switched = QtCore.Signal(bool)
-    on_char = '👁'
-    off_char = '◎'
-
-    def __init__(self, parent=None):
+    def __init__(self, parent):
         super().__init__(parent)
-        self.setFixedSize(25, 25)
-        self.setCheckable(True)
-        self.setChecked(True)
+        self.icon = pixmap('garbage.png')
+        self.setFixedSize(parent.iconSize())
+        self.setAcceptDrops(True)
+        self.refuse = False
+        self.hover = False
 
-    def mouseReleaseEvent(self, event):
-        if event.button() == QtCore.Qt.LeftButton:
-            state = not self.isChecked()
-            self.setChecked(state)
-            self.switched.emit(state)
+    def dragEnterEvent(self, event):
+        mime = event.mimeData()
+        if not isinstance(mime.parent(), ComparingMediaTable):
+            self.refuse = True
             self.repaint()
+            return
+        self.hover = True
+        self.repaint()
+        return event.accept()
+
+    def dragLeaveEvent(self, _):
+        self.release()
+
+    def leaveEvent(self, _):
+        self.release()
+
+    def dropEvent(self, event):
+        index = event.mimeData().data('index').toInt()[0]
+        self.removeIndex.emit(index)
+        self.release()
+
+    def release(self):
+        self.hover = False
+        self.refuse = False
+        self.repaint()
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setPen(QtGui.QColor('white' if self.isChecked() else 'grey'))
-        char = self.on_char if self.isChecked() else self.off_char
-        painter.drawText(event.rect(), char)
+        painter.drawPixmap(self.rect(), self.icon)
+        if self.hover:
+            color = QtGui.QColor(QtCore.Qt.white)
+            color.setAlpha(75)
+        elif self.refuse:
+            color = QtGui.QColor(QtCore.Qt.red)
+            color.setAlpha(75)
+        else:
+            color = QtGui.QColor(QtCore.Qt.transparent)
+        painter.setPen(QtCore.Qt.transparent)
+        painter.setBrush(color)
+        painter.drawRect(event.rect())
         painter.end()
 
 
-class Eye(Switcher):
-    on_char = '👁'
-    off_char = '◯'
+class ComparingMediaTable(QtWidgets.QWidget):
+    WIDTH = 50
+    PADDING = 5
 
-
-class Current(Switcher):
-    on_char = '👁'
-    off_char = '◯'
-
-    def mouseReleaseEvent(self, event):
-        if event.button() == QtCore.Qt.LeftButton and not self.isChecked():
-            self.setChecked(True)
-            self.switched.emit(True)
-            self.repaint()
-
-
-class LayerLine(QtWidgets.QWidget):
-    undoRecordRequest = QtCore.Signal()
-    edited = QtCore.Signal()
-    selected = QtCore.Signal()
-
-    def __init__(self, parent=None):
+    def __init__(self, imagesstack, parent=None):
         super().__init__(parent=parent)
-        self._current = Current()
-        self._current.switched.connect(self.call_selected)
-        self._switch = Eye()
-        self._switch.switched.connect(self.call_edit)
-        self._opacity = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self._opacity.valueChanged.connect(self.call_edit)
-        self._opacity.sliderPressed.connect(self.slider_pressed)
-        self._opacity.sliderReleased.connect(self.slider_released)
-        self._opacity.setMinimum(0)
-        self._opacity.setMaximum(255)
-        self._opacity.setValue(255)
-        self._opacity_ghost_value = None
-        layout = QtWidgets.QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._current)
-        layout.addWidget(self._switch)
-        layout.addWidget(self._opacity)
+        self.imagesstack = imagesstack
+        self.setMouseTracking(True)
 
-    def slider_pressed(self):
-        self._opacity_ghost_value = self._opacity.value()
+    def rects(self):
+        width = self.WIDTH + (2 * self.PADDING)
+        left, top = 0, 0
+        rects = []
+        for _ in self.imagesstack:
+            if left + width > self.width():
+                left = 0
+                top += width
+            rect = QtCore.QRect(
+                left + self.PADDING,
+                top + self.PADDING,
+                self.WIDTH,
+                self.WIDTH)
+            rects.append(rect)
+            left += width
+        return rects
 
-    def slider_released(self):
-        if self._opacity_ghost_value != self._opacity.value():
-            self.undoRecordRequest.emit()
-        self._opacity_ghost_value = None
+    def updatesize(self):
+        rects = self.rects()
+        if not rects:
+            self.setFixedHeight(8)
+            return
+        self.setFixedHeight(rects[-1].bottom() + self.PADDING)
+        self.repaint()
 
-    def set_selected_color(self):
-        self.setStyleSheet('background-color: rgba(255, 255, 0, 50)')
+    def resizeEvent(self, event):
+        self.updatesize()
 
-    def select(self):
-        self.set_selected_color()
-        self._current.setChecked(True)
+    def mousePressEvent(self, event):
+        if event.button() != QtCore.Qt.LeftButton:
+            return
+        for i, rect in enumerate(self.rects()):
+            if rect.contains(event.pos()):
+                mime = QtCore.QMimeData()
+                mime.setParent(self)
+                data = QtCore.QByteArray()
+                data.setNum(i)
+                mime.setData('index', data)
+                drag = QtGui.QDrag(self)
+                drag.setMimeData(mime)
+                drag.setHotSpot(event.pos())
+                drag.exec_(QtCore.Qt.CopyAction)
 
-    def deselect(self):
-        self.setStyleSheet('')
-        self._current.setChecked(False)
+    def mouseMoveEvent(self, _):
+        self.repaint()
 
-    def call_selected(self, *_):
-        self.set_selected_color()
-        self.selected.emit()
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        painter.setPen(QtCore.Qt.transparent)
+        color = QtGui.QColor(QtCore.Qt.black)
+        color.setAlpha(25)
+        painter.setBrush(color)
+        painter.drawRoundedRect(event.rect(), self.PADDING, self.PADDING)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
+        for rect, image in zip(self.rects(), self.imagesstack):
+            image = image.scaled(
+                self.WIDTH,
+                self.WIDTH,
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation)
+            image_rect = QtCore.QRect(
+                0, 0, image.size().width(), image.size().height())
+            image_rect.moveCenter(rect.center())
+            painter.setPen(QtCore.Qt.transparent)
+            painter.setBrush(QtCore.Qt.black)
+            painter.drawRect(rect)
+            painter.drawImage(image_rect, image)
+            cursor = self.mapFromGlobal(QtGui.QCursor.pos())
+            if rect.contains(cursor):
+                painter.setPen(QtCore.Qt.yellow)
+                color = QtGui.QColor(QtCore.Qt.white)
+                color.setAlpha(50)
+                painter.setBrush(color)
+                painter.drawRect(rect)
+                painter.setPen(QtCore.Qt.transparent)
+        painter.end()
 
-    def call_edit(self, *_):
-        self.edited.emit()
 
-    @property
-    def visible(self):
-        return self._switch.isChecked()
+class ToolNameLabel(QtWidgets.QWidget):
+    def __init__(self, text, parent=None):
+        super().__init__(parent=parent)
+        option = QtGui.QTextOption()
+        option.setWrapMode(QtGui.QTextOption.NoWrap)
+        self.text = QtGui.QStaticText(text)
+        self.text.setTextOption(option)
 
-    @visible.setter
-    def visible(self, state):
-        self._switch.setChecked(state)
+    def sizeHint(self):
+        return self.text.size().toSize()
 
-    @property
-    def opacity(self):
-        return self._opacity.value()
-
-    @opacity.setter
-    def opacity(self, value):
-        self._opacity.blockSignals(True)
-        self._opacity.setValue(value)
-        self._opacity.blockSignals(False)
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        color = QtGui.QColor('black')
+        color.setAlpha(50)
+        painter.setBrush(color)
+        pen = painter.pen()
+        painter.setPen(QtCore.Qt.transparent)
+        painter.drawRect(event.rect())
+        painter.setPen(pen)
+        painter.drawStaticText(10, 0, self.text)
 
 
 class LayerView(QtWidgets.QWidget):
     edited = QtCore.Signal()
+    layoutChanged = QtCore.Signal(int)
+    comparingRemoved = QtCore.Signal(int)
 
-    def __init__(self, layerstack, parent=None):
+    def __init__(self, layerstack, imagestack, parent=None):
         super().__init__(parent=parent)
         self.layerstack = layerstack
-        self.layerstackview = QtWidgets.QListWidget()
-        mode = QtWidgets.QAbstractItemView.NoSelection
-        self.layerstackview.setSelectionMode(mode)
+        self.imagestack = imagestack
+        self.layerstackview = LayerStackView(self.layerstack)
         # Washed out
         self._wash_color = ColorAction()
         self._wash_color.color = self.layerstack.wash_color
@@ -178,12 +222,51 @@ class LayerView(QtWidgets.QWidget):
         self.toolbar = QtWidgets.QToolBar()
         self.toolbar.addAction(self.plus)
         self.toolbar.addAction(self.minus)
+        # StackLayout
+        self.horizontal = QtWidgets.QAction(icon('horizontal.png'), None, self)
+        self.horizontal.setCheckable(True)
+        self.horizontal.setChecked(True)
+        method = partial(self.layoutChanged.emit, 0)
+        self.horizontal.triggered.connect(method)
+        self.vertical = QtWidgets.QAction(icon('vertical.png'), None, self)
+        self.vertical.setCheckable(True)
+        method = partial(self.layoutChanged.emit, 1)
+        self.vertical.triggered.connect(method)
+        self.tabled = QtWidgets.QAction(icon('table.png'), None, self)
+        self.tabled.setCheckable(True)
+        method = partial(self.layoutChanged.emit, 2)
+        self.tabled.triggered.connect(method)
+        self.overlap = QtWidgets.QAction(icon('overlap.png'), None, self)
+        self.overlap.setCheckable(True)
+        method = partial(self.layoutChanged.emit, 3)
+        self.overlap.triggered.connect(method)
+        spacer = QtWidgets.QWidget()
+        spacer.setSizePolicy(*[QtWidgets.QSizePolicy.Expanding] * 2)
+        self.layouts = QtWidgets.QActionGroup(self)
+        self.layouts.addAction(self.horizontal)
+        self.layouts.addAction(self.vertical)
+        self.layouts.addAction(self.tabled)
+        self.layouts.addAction(self.overlap)
+        self.layout_types = QtWidgets.QToolBar()
+        self.layout_types.addActions(self.layouts.actions())
+        self.layout_types.addWidget(spacer)
+
+        self.delete_comparing = Garbage(self.layout_types)
+        self.delete_comparing.removeIndex.connect(self.comparingRemoved.emit)
+        self.layout_types.addWidget(self.delete_comparing)
+
+        self.comparing_media = ComparingMediaTable(self.imagestack)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(ToolNameLabel('Layers'))
         layout.addWidget(self.layerstackview)
-        layout.addLayout(self.washer)
         layout.addWidget(self.toolbar)
+        layout.addWidget(ToolNameLabel('Washer Options'))
+        layout.addLayout(self.washer)
+        layout.addWidget(ToolNameLabel('Comparing Media'))
+        layout.addWidget(self.comparing_media)
+        layout.addWidget(self.layout_types)
 
     def start_slide(self):
         self._wash_opacity_ghost = self._wash_opacity.value()
@@ -199,62 +282,33 @@ class LayerView(QtWidgets.QWidget):
         self.edited.emit()
 
     def sync_layers(self):
-        self.layerstackview.clear()
-        for i, (_, visibility, opacity) in enumerate(self.layerstack):
-            line = LayerLine()
-            line.edited.connect(self.call_edited)
-            line.selected.connect(partial(self.line_selected, line))
-            line.undoRecordRequest.connect(self.layerstack.add_undo_state)
-            line.visible = visibility
-            line.opacity = opacity
-            item = QtWidgets.QListWidgetItem()
-            item.setSizeHint(line.sizeHint())
-            self.layerstackview.addItem(item)
-            self.layerstackview.setItemWidget(item, line)
-            if i == self.layerstack.current_index:
-                line.select()
-            else:
-                line.deselect()
+        self.comparing_media.updatesize()
+        self.layerstackview.repaint()
         self._wash_color.color = self.layerstack.wash_color
         self._wash_opacity.blockSignals(True)
         self._wash_opacity.setValue(self.layerstack.wash_opacity)
         self._wash_opacity.blockSignals(False)
 
+    def set_layerstack(self, layerstack):
+        self.layerstack = layerstack
+        self.layerstackview.set_layerstack(layerstack)
+        self.layerstackview.update_size()
+        self.layerstackview.repaint()
+
     def layer_added(self):
         self.layerstack.add()
-        line = LayerLine()
-        line.edited.connect(self.call_edited)
-        line.selected.connect(partial(self.line_selected, line))
-        line.undoRecordRequest.connect(self.layerstack.add_undo_state)
-        item = QtWidgets.QListWidgetItem()
-        item.setSizeHint(line.sizeHint())
-        self.layerstackview.insertItem(0, item)
-        self.layerstackview.setItemWidget(item, line)
-        line.select()
-        self.line_selected(line)
+        self.layerstackview.update_size()
+        self.layerstackview.repaint()
 
     def call_edited(self):
-        for i in range(self.layerstackview.count()):
-            item = self.layerstackview.item(i)
-            line = self.layerstackview.itemWidget(item)
-            self.layerstack.visibilities[i] = line.visible
-            self.layerstack.opacities[i] = line.opacity
+        self.layerstackview.repaint()
         self.edited.emit()
 
     def remove_current_layer(self):
         index = self.layerstack.current_index
         self.layerstack.delete(index)
-        self.layerstackview.takeItem(index)
+        self.layerstackview.repaint()
         self.edited.emit()
-
-    def line_selected(self, line):
-        for i in range(self.layerstackview.count()):
-            item = self.layerstackview.item(i)
-            line2 = self.layerstackview.itemWidget(item)
-            if line2 != line:
-                line2.deselect()
-            else:
-                self.layerstack.set_current(i)
 
     def change_wash_color(self):
         dialog = ColorSelection(self._wash_color.color)
@@ -266,13 +320,6 @@ class LayerView(QtWidgets.QWidget):
         self.layerstack.wash_color = dialog.color
         self.layerstack.add_undo_state()
         self.edited.emit()
-
-    @property
-    def layers(self):
-        for i, (layer, *_) in enumerate(self.layerstack):
-            item = self.layerstackview.item(i)
-            line = item.widget()
-            yield layer, line.is_visible, line.opacity
 
     @property
     def washer_color(self):
@@ -374,19 +421,24 @@ class RetakeCanvas(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.drawcontext = DrawContext()
+        self.imagesstack = []
         self.layerstack = LayerStack()
         self.navigator = Navigator()
         self.viewportmapper = ViewportMapper()
         self.selection = Selection()
 
-        self.layerview = LayerView(self.layerstack)
+        self.layerview = LayerView(self.layerstack, self.imagesstack)
         self.layerview.edited.connect(self.repaint)
+        self.layerview.layoutChanged.connect(self.change_layout)
+        self.layerview.comparingRemoved.connect(self.remove_comparing)
         self.canvas = Canvas(
             drawcontext=self.drawcontext,
+            imagesstack=self.imagesstack,
             layerstack=self.layerstack,
             navigator=self.navigator,
             selection=self.selection,
             viewportmapper=self.viewportmapper)
+        self.canvas.imageDropped.connect(self.layerview.sync_layers)
 
         self.navigation = QtWidgets.QAction(icon('hand.png'), '', self)
         self.navigation.setCheckable(True)
@@ -482,12 +534,14 @@ class RetakeCanvas(QtWidgets.QWidget):
 
         self.left_widget = QtWidgets.QWidget()
         left_layout = QtWidgets.QVBoxLayout(self.left_widget)
+        left_layout.addWidget(ToolNameLabel('Tool Options'))
         left_layout.addLayout(settings_layout)
         left_layout.addWidget(self.layerview)
+        left_layout.addStretch(1)
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
-        splitter.addWidget(self.canvas)
         splitter.addWidget(self.left_widget)
+        splitter.addWidget(self.canvas)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 1)
 
@@ -498,16 +552,27 @@ class RetakeCanvas(QtWidgets.QWidget):
         layout.addWidget(splitter)
         self.navigation.trigger()
 
+    def remove_comparing(self, index):
+        del self.imagesstack[index]
+        self.canvas.repaint()
+        self.layerview.sync_layers()
+
+    def change_layout(self, layout):
+        self.canvas.layout_type = layout
+        self.canvas.repaint()
+
     def render(self, layerstack=None, baseimage=None):
         return self.canvas.render(layerstack, baseimage)
 
     def undo(self):
         self.layerstack.undo()
+        self.selection.clear()
         self.layerview.sync_layers()
         self.canvas.repaint()
 
     def redo(self):
         self.layerstack.redo()
+        self.selection.clear()
         self.layerview.sync_layers()
         self.canvas.repaint()
 
@@ -562,7 +627,7 @@ class RetakeCanvas(QtWidgets.QWidget):
     def set_layerstack(self, layerstack):
         self.selection.clear()
         self.layerstack = layerstack
-        self.layerview.layerstack = layerstack
+        self.layerview.set_layerstack(layerstack)
         self.canvas.layerstack = layerstack
         for widget in self.tools.values():
             widget.layerstack = layerstack

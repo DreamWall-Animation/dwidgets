@@ -1,4 +1,4 @@
-import numpy as np
+
 import math
 from PySide2 import QtCore
 from dwidgets.retakecanvas.shapes import (
@@ -12,8 +12,11 @@ class LayerStack:
     def __init__(self):
         super().__init__()
         self.layers = []
-        self.visibilities = []
+        self.locks = []
+        self.names = []
         self.opacities = []
+        self.visibilities = []
+
         self.current_index = None
         self.wash_color = '#FFFFFF'
         self.wash_opacity = 0
@@ -21,10 +24,12 @@ class LayerStack:
         self.redostack = []
         self.add_undo_state()
 
-    def add(self, undo=True):
+    def add(self, undo=True, name=None):
         self.layers.append([])
-        self.visibilities.append(True)
+        self.locks.append(False)
         self.opacities.append(255)
+        self.names.append(name or f'Layer {len(self.layers)}')
+        self.visibilities.append(True)
         self.current_index = len(self.layers) - 1
         if undo:
             self.add_undo_state()
@@ -53,6 +58,7 @@ class LayerStack:
         self.layers.pop(index)
         self.visibilities.pop(index)
         self.opacities.pop(index)
+        self.locks.pop(index)
 
         if not self.layers:
             self.current = None
@@ -65,7 +71,9 @@ class LayerStack:
         self.redostack = []
         state = {
             'layers': [[elt.copy() for elt in layer] for layer in self.layers],
+            'locks': self.locks.copy(),
             'opacities': self.opacities.copy(),
+            'names': self.names.copy(),
             'visibilities': self.visibilities.copy(),
             'current': self.current_index,
             'wash_color': self.wash_color,
@@ -77,11 +85,14 @@ class LayerStack:
     def restore_state(self, state):
         layers = [[elt.copy() for elt in layer] for layer in state['layers']]
         self.layers = layers
+        self.locks = state['locks']
+        self.opacities = state['opacities']
+        self.names = state['names']
+        self.visibilities = state['visibilities']
+
         self.current_index = state['current']
         self.wash_color = state['wash_color']
         self.wash_opacity = state['wash_opacity']
-        self.visibilities = state['visibilities']
-        self.opacities = state['opacities']
 
     def undo(self):
         if not self.undostack:
@@ -94,6 +105,8 @@ class LayerStack:
         else:
             self.restore_state({
                 'layers': [],
+                'locks': [],
+                'names': [],
                 'opacities': [],
                 'visibilities': [],
                 'current': None,
@@ -121,7 +134,15 @@ class LayerStack:
                     return element
 
     def __iter__(self):
-        return zip(self.layers, self.visibilities, self.opacities).__iter__()
+        return zip(
+            self.layers,
+            self.names,
+            self.locks,
+            self.visibilities,
+            self.opacities).__iter__()
+
+    def __len__(self):
+        return len(self.layers)
 
 
 def is_point_hover_element(element, point):

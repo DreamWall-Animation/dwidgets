@@ -1,4 +1,6 @@
-
+import os
+import sys
+import math
 import time
 from PySide2 import QtCore, QtWidgets, QtGui
 from dwidgets.retakecanvas.tools import NavigationTool
@@ -9,20 +11,30 @@ from dwidgets.retakecanvas.viewport import ViewportMapper
 
 
 class Canvas(QtWidgets.QWidget):
+    imageDropped = QtCore.Signal()
+    HORIZONTAL = 0
+    VERTICAL = 1
+    GRID = 2
+
     def __init__(
             self,
             drawcontext,
             layerstack,
+            imagesstack,
             navigator,
             selection,
             viewportmapper,
             parent=None):
         super().__init__(parent)
         self.setMouseTracking(True)
+        self.setAcceptDrops(True)
+
         self.baseimage = None
+        self.layout_type = 0
         self.selection = selection
         self.drawcontext = drawcontext
         self.layerstack = layerstack
+        self.imagesstack = imagesstack
         self.navigator = navigator
         self.viewportmapper = viewportmapper
         self.tool = NavigationTool(
@@ -35,10 +47,19 @@ class Canvas(QtWidgets.QWidget):
         self.timer.start(300)
         self.timer.timeout.connect(self.repaint)
 
-    # def timeEvent(self, _):
-    #     if self.selection:
-    #         print('')
-    #         self.repaint()
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            return event.accept()
+
+    def dropEvent(self, event):
+        paths = [
+            os.path.expandvars(url.path())
+            for url in event.mimeData().urls()]
+        images = [QtGui.QImage(p) for p in paths]
+        images = [image for image in images if not image.isNull()]
+        self.imagesstack.extend(images)
+        self.repaint()
+        self.imageDropped.emit()
 
     def sizeHint(self):
         if not self.baseimage:
@@ -56,8 +77,10 @@ class Canvas(QtWidgets.QWidget):
         if not self.baseimage:
             return
         self.viewportmapper.viewsize = self.size()
-        rect = QtCore.QRect(
-            0, 0, self.baseimage.width(), self.baseimage.height())
+        rect = get_global_rect(
+            self.baseimage,
+            self.imagesstack,
+            self.layout_type)
         self.viewportmapper.focus(rect)
         self.repaint()
 
@@ -155,14 +178,14 @@ class Canvas(QtWidgets.QWidget):
             painter.setBrush(color)
             painter.drawRect(rect)
 
-        for layer, visible, opacity in layerstack:
+        for layer, _, _, visible, opacity in layerstack:
             if not visible:
                 continue
             draw_layer(painter, layer, opacity, ViewportMapper())
 
         return image
 
-    def paintEvent(self, event):
+    def paintEvent(self, _):
         if not self.baseimage:
             return
 
@@ -173,6 +196,14 @@ class Canvas(QtWidgets.QWidget):
             painter.setPen(QtCore.Qt.transparent)
             painter.drawRect(self.rect())
             painter.setBrush(QtCore.Qt.darkBlue)
+
+            rects = get_images_rects(
+                self.baseimage,
+                self.imagesstack,
+                layout=self.layout_type)
+            for image, rect in zip(self.imagesstack, rects):
+                rect = self.viewportmapper.to_viewport_rect(rect)
+                painter.drawImage(rect, image)
 
             size = self.baseimage.size()
             rect = QtCore.QRectF(0, 0, size.width(), size.height())
@@ -187,7 +218,7 @@ class Canvas(QtWidgets.QWidget):
                 painter.setBrush(color)
                 painter.drawRect(rect)
 
-            for layer, visible, opacity in self.layerstack:
+            for layer, _, _, visible, opacity in self.layerstack:
                 if not visible:
                     continue
                 draw_layer(painter, layer, opacity, self.viewportmapper)
@@ -196,6 +227,69 @@ class Canvas(QtWidgets.QWidget):
             self.tool.draw(painter)
         finally:
             painter.end()
+
+
+def get_images_rects(baseimage, stackimages, layout=0):
+    """
+    layout: int
+        HORIZONTAL = 0
+        VERTICAL = 1
+        GRID = 2
+        OVERLAP = 3
+    """
+    images = [baseimage] + stackimages
+    rects = [
+        QtCore.QRectF(0, 0, image.size().width(), image.size().height())
+        for image in images]
+    last_rect = None
+    if layout == 0:
+        for rect in rects:
+            if not last_rect:
+                last_rect = rect
+                continue
+            rect.moveTopLeft(last_rect.topRight())
+            last_rect = rect
+    elif layout == 1:
+        for rect in rects:
+            if not last_rect:
+                last_rect = rect
+                continue
+            rect.moveTopLeft(last_rect.bottomLeft())
+            last_rect = rect
+    elif layout == 2:
+        set_grid_layout(rects)
+    return rects[1:]
+
+
+def get_global_rect(baseimage, stackimages, layout=0):
+    image_rect = QtCore.QRectF(0, 0, baseimage.width(), baseimage.height())
+    rects = get_images_rects(baseimage, stackimages, layout)
+    rects.append(image_rect)
+    left, top = sys.maxsize, sys.maxsize
+    right, bottom = -sys.maxsize, -sys.maxsize
+    for rect in rects:
+        left = min((rect.left(), left))
+        top = min((rect.top(), top))
+        right = max((rect.right(), right))
+        bottom = max((rect.bottom(), bottom))
+    return QtCore.QRectF(left, top, right - left, bottom - top)
+
+
+def set_grid_layout(viewport_rects):
+    colcount = math.ceil(math.sqrt(len(viewport_rects)))
+    width = max(rect.width() for rect in viewport_rects)
+    height = max(rect.height() for rect in viewport_rects)
+    top, left = viewport_rects[0].top(), viewport_rects[0].left()
+    for i, rect in enumerate(viewport_rects):
+        if not i:
+            left += width
+            continue
+        if i % colcount == 0:
+            left = viewport_rects[0].left()
+            top += height
+        rect.moveTopLeft(QtCore.QPointF(left, top))
+        left += width
+    return
 
 
 def draw_layer(painter, layer, opacity, viewportmapper):
