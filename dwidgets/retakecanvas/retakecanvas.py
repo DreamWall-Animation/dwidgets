@@ -539,16 +539,20 @@ class RetakeCanvas(QtWidgets.QWidget):
         left_layout.addWidget(self.layerview)
         left_layout.addStretch(1)
 
+        self.right_widget = QtWidgets.QWidget()
+        right_layout = QtWidgets.QVBoxLayout(self.right_widget)
+        right_layout.addWidget(self.tools_bar)
+        right_layout.addWidget(self.canvas)
+        right_layout.addStretch(1)
+
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         splitter.addWidget(self.left_widget)
-        splitter.addWidget(self.canvas)
+        splitter.addWidget(self.right_widget)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 1)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        layout.addWidget(self.tools_bar)
         layout.addWidget(splitter)
         self.navigation.trigger()
 

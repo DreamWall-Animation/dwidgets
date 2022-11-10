@@ -51,7 +51,7 @@ class LayerStack:
     def delete(self, index=None):
         if not index and self.current:
             index = self.layers.index(self.current)
-        if not index:
+        if index is None:
             return
         if index != self.current_index:
             return
@@ -59,12 +59,13 @@ class LayerStack:
         self.visibilities.pop(index)
         self.opacities.pop(index)
         self.locks.pop(index)
+        self.names.pop(index)
 
         if not self.layers:
-            self.current = None
+            self.current_index = None
             self.add_undo_state()
             return
-        self.current = self.layers[index - 1]
+        self.current_index = index - 1
         self.add_undo_state()
 
     def add_undo_state(self):
