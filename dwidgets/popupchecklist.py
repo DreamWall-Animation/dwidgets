@@ -3,16 +3,16 @@ from PySide2 import QtWidgets, QtCore
 from PySide2.QtCore import Qt
 
 
-class PopupCheckList(QtWidgets.QWidget):
+class PopupCheckList(QtWidgets.QMenu):
     checked_items_changed = QtCore.Signal(list)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.checkboxes = []
-        self.setWindowFlags(Qt.Popup | QtCore.Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
 
-        self.list_widget = QtWidgets.QListWidget()
+        self.list_widget = QtWidgets.QListWidget(minimumHeight=200)
         self.list_widget.itemClicked.connect(self._toggle_checkbox)
         clear_btn = QtWidgets.QPushButton(
             'clear', clicked=self.uncheck_all,
@@ -74,12 +74,6 @@ class PopupCheckList(QtWidgets.QWidget):
     def invert(self):
         with self._single_signal():
             [cb.setChecked(not cb.isChecked()) for cb in self.checkboxes]
-
-    def popup(self, position):
-        if not self.checkboxes:
-            return
-        self.move(position)
-        self.show()
 
 
 class PopupCheckListButton(QtWidgets.QPushButton):
