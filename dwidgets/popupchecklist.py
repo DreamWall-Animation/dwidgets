@@ -91,6 +91,8 @@ class PopupCheckListButton(QtWidgets.QPushButton):
         self.menu = PopupCheckList(self)
         self.clicked.connect(self.popup)
         self.menu.checked_items_changed.connect(self._set_text)
+        self.menu.checked_items_changed.connect(
+            self.checked_items_changed.emit)
 
         self.set_items = self.menu.set_items
         self.checked_items_labels = self.menu.checked_items_labels
