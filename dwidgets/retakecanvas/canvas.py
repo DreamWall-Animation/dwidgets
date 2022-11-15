@@ -204,19 +204,21 @@ class Canvas(QtWidgets.QWidget):
                     rect = self.model.viewportmapper.to_viewport_rect(rect)
                     painter.drawImage(rect, image)
             else:
-                images = list(reversed(self.model.imagestack)) + [self.model.baseimage]
+                images = list(reversed(self.model.imagestack))
+                images += [self.model.baseimage]
                 wipes = self.model.imagestack_wipes[:]
                 wipes.append(self.model.baseimage_wipes)
                 for image, rect, wipe in zip(images, rects, wipes):
-                    image = image.scaled(rect.size().toSize(), QtCore.Qt.KeepAspectRatio)
+                    mode = QtCore.Qt.KeepAspectRatio
+                    image = image.scaled(rect.size().toSize(), mode)
                     image = image.copy(wipe)
                     wipe = self.model.viewportmapper.to_viewport_rect(wipe)
                     painter.drawImage(wipe, image)
 
-            if self.model.layerstack.wash_opacity:
+            if self.model.wash_opacity:
                 painter.setPen(QtCore.Qt.transparent)
-                color = QtGui.QColor(self.model.layerstack.wash_color)
-                color.setAlpha(self.model.layerstack.wash_opacity)
+                color = QtGui.QColor(self.model.wash_color)
+                color.setAlpha(self.model.wash_opacity)
                 painter.setBrush(color)
                 painter.drawRect(rect)
 

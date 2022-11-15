@@ -23,7 +23,7 @@ class LayerView(QtWidgets.QWidget):
         super().__init__(parent=parent)
         self.model = model
         self.model.imagestack = model.imagestack
-        self.layerstackview = LayerStackView(self.model.layerstack)
+        self.layerstackview = LayerStackView(self.model)
         # Washed out
         self._wash_color = ColorAction()
         self._wash_color.color = self.model.wash_color
@@ -121,7 +121,7 @@ class LayerView(QtWidgets.QWidget):
     def set_model(self, model):
         self.model = model
         self.comparing_media.set_model(model)
-        self.layerstackview.set_layerstack(model.layerstack)
+        self.layerstackview.set_model(model)
         self.layerstackview.update_size()
         self.layerstackview.repaint()
         action = self.layout_types.actions()[self.model.imagestack_layout]
@@ -176,7 +176,6 @@ class LeftScrollView(QtWidgets.QScrollArea):
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setMinimumWidth(self.child.minimumWidth())
         self.setWidgetResizable(True)
-        print(self.widgetResizable())
 
 
 class RetakeCanvas(QtWidgets.QWidget):
@@ -226,7 +225,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.arrow.tool = tools.ArrowTool
         self.wipes = QtWidgets.QAction(icon('wipes.png'), '', self)
         self.wipes.setCheckable(True)
-        self.wipes.setEnabled(True)
+        self.wipes.setEnabled(False)
         self.wipes.triggered.connect(self.set_tool)
         self.wipes.tool = tools.ArrowTool
 
@@ -292,6 +291,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         left_layout.addStretch(1)
 
         self.left_scroll = LeftScrollView(self.left_widget)
+        self.left_scroll.setMinimumWidth(250)
 
         self.right_widget = QtWidgets.QWidget()
         right_layout = QtWidgets.QVBoxLayout(self.right_widget)

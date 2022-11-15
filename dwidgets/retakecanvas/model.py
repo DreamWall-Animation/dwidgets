@@ -68,6 +68,10 @@ class RetakeCanvasModel:
         if undo:
             self.add_undo_state()
 
+    def move_layer(self, old_index, new_index):
+        self.layerstack.move_layer(old_index, new_index)
+        self.add_undo_state()
+
     def add_shape(self, shape):
         self.layerstack.current.append(shape)
         self.add_undo_state()

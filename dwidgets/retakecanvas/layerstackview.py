@@ -8,9 +8,10 @@ class LayerStackView(QtWidgets.QWidget):
     ITEM_HEIGHT = 30
     PADDING = 10
 
-    def __init__(self, layerstack, parent=None):
+    def __init__(self, model, parent=None):
         super().__init__(parent)
-        self.layerstack = layerstack
+        self.model = model
+        self.layerstack = model.layerstack
         self.setMinimumWidth(200)
         self.visibility_pixmap = pixmap('visibility.png')
         self.current_item_pixmap = pixmap('current.png')
@@ -22,16 +23,18 @@ class LayerStackView(QtWidgets.QWidget):
         self.handle_mode = None
         self.handle_index = None
         self.buffer_state = None
+        self.dragging = False
 
-    def set_layerstack(self, layerstack):
-        self.layerstack = layerstack
+    def set_model(self, model):
+        self.model = model
+        self.layerstack = model.layerstack
         self.repaint()
 
     def mouseDoubleClickEvent(self, event):
         if event.button() != QtCore.Qt.LeftButton:
             return
         mode, index = self.get_handle_infos(event.pos())
-        if mode == 'text':
+        if mode == 'drag':
             dialog = RenameDialog(self.layerstack, index, self)
             row = self.row(index)
             rect = self.text_rect(row)
@@ -61,29 +64,43 @@ class LayerStackView(QtWidgets.QWidget):
             result = dialog.exec_(point, rect.size())
             if result != QtWidgets.QDialog.Accepted:
                 return
+        elif self.handle_mode == 'drag':
+            self.layerstack.current_index = self.handle_index
         self.repaint()
 
     def mouseMoveEvent(self, event):
         mode, index = self.get_handle_infos(event.pos())
         if self.handle_mode == 'visibility' and mode == 'visibility':
             self.layerstack.visibilities[index] = self.buffer_state
-            self.repaint()
-            return
-        if self.handle_mode == 'lock' and mode == 'lock':
+        elif self.handle_mode == 'lock' and mode == 'lock':
             self.layerstack.locks[index] = self.buffer_state
-            self.repaint()
+        elif self.handle_mode == 'drag' and self.handle_index is not None:
+            self.dragging = True
+        self.repaint()
+
+    def release(self):
+        self.handle_mode = None
+        self.handle_index = None
+        self.dragging = False
+        self.repaint()
 
     def mouseReleaseEvent(self, event):
         if event.button() != QtCore.Qt.LeftButton:
-            return
+            return False
         if not self.handle_mode or self.handle_index is None:
-            return
-        mode, index = self.get_handle_infos(event.pos())
-        modes = 'current', 'text'
-        if self.handle_mode in modes and index == self.handle_index:
+            self.release()
+            return False
+        _, index = self.get_handle_infos(event.pos())
+        if self.handle_mode == 'current' and index == self.handle_index:
             self.layerstack.current_index = index
-            self.repaint()
-            return
+            self.release()
+            return True
+        if self.handle_mode == 'drag':
+            self.drop()
+            self.release()
+            return True
+        self.release()
+        return False
 
     def get_handle_infos(self, pos):
         for index, row in enumerate(range(len(self.layerstack) - 1, -1, -1)):
@@ -94,7 +111,7 @@ class LayerStackView(QtWidgets.QWidget):
             if self.lock_rect(row).contains(pos):
                 return 'lock', index
             if self.text_rect(row).contains(pos):
-                return 'text', index
+                return 'drag', index
             if self.opacity_rect(row).contains(pos):
                 return 'opacity', index
         return None, None
@@ -112,10 +129,13 @@ class LayerStackView(QtWidgets.QWidget):
         self.setFixedHeight(self.sizeHint().height())
 
     def rects(self):
-        height = self.ITEM_HEIGHT
         return [
-            QtCore.QRect(0, (height * i) + self.PADDING, self.width(), height)
+            self.item_rect(i)
             for i in range(len(self.layerstack))]
+
+    def item_rect(self, row):
+        top = (self.ITEM_HEIGHT * row) + self.PADDING
+        return QtCore.QRect(0, top, self.width(), self.ITEM_HEIGHT)
 
     def button_rect(self, row, section=0, fromleft=True):
         height = self.ITEM_HEIGHT
@@ -145,6 +165,37 @@ class LayerStackView(QtWidgets.QWidget):
         top = rect_left.top()
         width = self.width() - left - self.ITEM_HEIGHT
         return QtCore.QRect(left, top, width, self.ITEM_HEIGHT)
+
+    def get_drop_infos(self):
+        pos = self.mapFromGlobal(QtGui.QCursor.pos())
+        _, index = self.get_handle_infos(pos)
+        if index is None:
+            return None, None, None
+        rect = self.item_rect(self.row(index))
+        action = 'before' if pos.y() > rect.center().y() else 'after'
+        return action, index, rect
+
+    def drop(self):
+        action, index, _ = self.get_drop_infos()
+        if None in (index, self.handle_index):
+            return
+        if index == self.handle_index:
+            return
+        if action == 'after':
+            index += 1
+        if index == self.handle_index:
+            return
+        if action == 'before' and index - 1 == self.handle_index:
+            return
+        self.model.move_layer(self.handle_index, index)
+
+    def get_drop_line(self):
+        action, _, rect = self.get_drop_infos()
+        if not action:
+            return
+        if action == 'after':
+            return QtCore.QLine(rect.topLeft(), rect.topRight())
+        return QtCore.QLine(rect.bottomLeft(), rect.bottomRight())
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
@@ -213,4 +264,12 @@ class LayerStackView(QtWidgets.QWidget):
             rect.setLeft(rect.left() + 5)
             painter.drawText(rect, name, option)
             painter.setCompositionMode(oldmode)
+            # Draw drag and drop
+            if self.handle_mode == 'drag' and self.dragging:
+                line = self.get_drop_line()
+                if line:
+                    pen = QtGui.QPen(QtCore.Qt.black)
+                    pen.setWidth(3)
+                    painter.setPen(pen)
+                    painter.drawLine(line)
         painter.end()

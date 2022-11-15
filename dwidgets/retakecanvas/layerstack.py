@@ -18,8 +18,6 @@ class LayerStack:
         self.visibilities = []
 
         self.current_index = None
-        self.wash_color = '#FFFFFF'
-        self.wash_opacity = 0
         self.undostack = []
         self.redostack = []
         self._current_index = None
@@ -54,6 +52,16 @@ class LayerStack:
         if self.current_index is None:
             return
         return self.layers[self.current_index]
+
+    def move_layer(self, old_index, new_index):
+        if new_index > old_index:
+            new_index -= 1
+        self.layers.insert(new_index, self.layers.pop(old_index))
+        self.locks.insert(new_index, self.locks.pop(old_index))
+        self.names.insert(new_index, self.names.pop(old_index))
+        self.opacities.insert(new_index, self.opacities.pop(old_index))
+        self.visibilities.insert(new_index, self.visibilities.pop(old_index))
+        self.current_index = new_index
 
     def remove(self, element):
         if self.current:

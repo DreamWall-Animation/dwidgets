@@ -68,19 +68,20 @@ class WipesTool(NavigationTool):
             return
 
         painter.setRenderHints(QtGui.QPainter.Antialiasing, False)
-        color = QtGui.QColor(QtCore.Qt.yellow)
-        color.setAlpha(125)
-        painter.setPen(color)
         painter.setBrush(QtCore.Qt.NoBrush)
-        rect = self.rects[self.current_index]
-        rect = self.viewportmapper.to_viewport_rect(rect)
-        painter.drawRect(rect)
-        if self.current_side is not None:
-            line = side_line(rect, self.current_side)
-            pen = QtGui.QPen(QtCore.Qt.red)
-            pen.setWidth(2)
-            painter.setPen(pen)
-            painter.drawLine(line)
+        if not self.handeling:
+            color = QtGui.QColor(QtCore.Qt.yellow)
+            color.setAlpha(125)
+            painter.setPen(color)
+            rect = self.rects[self.current_index]
+            rect = self.viewportmapper.to_viewport_rect(rect)
+            painter.drawRect(rect)
+            if self.current_side is not None:
+                line = side_line(rect, self.current_side)
+                pen = QtGui.QPen(QtCore.Qt.red)
+                pen.setWidth(2)
+                painter.setPen(pen)
+                painter.drawLine(line)
         painter.setRenderHints(QtGui.QPainter.Antialiasing, True)
 
     def window_cursor_override(self):
