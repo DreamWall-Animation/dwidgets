@@ -3,6 +3,19 @@ from PySide2 import QtWidgets, QtCore
 from PySide2.QtCore import Qt
 
 
+EMPTY_LABEL = '-'
+
+
+def get_multiple_selection_text(selected_labels, max_labels):
+    if not selected_labels or len(selected_labels) == max_labels:
+        text = EMPTY_LABEL
+    elif len(selected_labels) == 1:
+        text = selected_labels[0]
+    else:
+        text = f'({len(selected_labels)}/{max_labels})'
+    return text
+
+
 class PopupCheckList(QtWidgets.QMenu):
     checked_items_changed = QtCore.Signal(list)
 
@@ -12,7 +25,8 @@ class PopupCheckList(QtWidgets.QMenu):
         self.checkboxes = []
         self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
 
-        self.list_widget = QtWidgets.QListWidget(minimumHeight=200)
+        self.list_widget = QtWidgets.QListWidget(
+            minimumHeight=200, minimumWidth=200)
         self.list_widget.itemClicked.connect(self._toggle_checkbox)
         clear_btn = QtWidgets.QPushButton(
             'clear', clicked=self.uncheck_all,
@@ -97,12 +111,7 @@ class PopupCheckListButton(QtWidgets.QPushButton):
 
     def _set_text(self):
         labels = self.menu.checked_items_labels()
-        if not labels or len(labels) == len(self.menu.checkboxes):
-            text = ' '
-        elif len(labels) == 1:
-            text = labels[0]
-        else:
-            text = f'({len(labels)}/{len(self.menu.checkboxes)})'
+        text = get_multiple_selection_text(labels, len(self.menu.checkboxes))
         self.setText(text)
 
     def mousePressEvent(self, event):
