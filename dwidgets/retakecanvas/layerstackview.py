@@ -1,6 +1,7 @@
 
-from PySide2 import QtWidgets, QtCore, QtGui
-from dwidgets.retakecanvas.qtutils import pixmap
+from dwidgets.retakecanvas.dialog import OpacityDialog, RenameDialog
+from dwidgets.retakecanvas.qtutils import pixmap, grow_rect
+from PySide2 import QtCore, QtGui, QtWidgets
 
 
 class LayerStackView(QtWidgets.QWidget):
@@ -49,10 +50,10 @@ class LayerStackView(QtWidgets.QWidget):
         if mode == 'visibility':
             self.buffer_state = not self.layerstack.visibilities[index]
             self.layerstack.visibilities[index] = self.buffer_state
-        if mode == 'lock':
+        elif mode == 'lock':
             self.buffer_state = not self.layerstack.locks[index]
             self.layerstack.locks[index] = self.buffer_state
-        if mode == 'opacity':
+        elif mode == 'opacity':
             dialog = OpacityDialog(self.layerstack, index, self)
             row = self.row(index)
             rect = self.opacity_rect(row)
@@ -75,7 +76,7 @@ class LayerStackView(QtWidgets.QWidget):
     def mouseReleaseEvent(self, event):
         if event.button() != QtCore.Qt.LeftButton:
             return
-        if not self.handle_mode or not self.handle_index is not None:
+        if not self.handle_mode or self.handle_index is None:
             return
         mode, index = self.get_handle_infos(event.pos())
         modes = 'current', 'text'
@@ -213,75 +214,3 @@ class LayerStackView(QtWidgets.QWidget):
             painter.drawText(rect, name, option)
             painter.setCompositionMode(oldmode)
         painter.end()
-
-
-class OpacityDialog(QtWidgets.QWidget):
-    WIDTH = 150
-
-    def __init__(self, layerstack, index, parent=None):
-        super().__init__(parent)
-        self.index = index
-        self.layerstack = layerstack
-        self.setWindowFlag(QtCore.Qt.FramelessWindowHint)
-        self.setWindowFlag(QtCore.Qt.Popup)
-        self.slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self.slider.setMinimum(0)
-        self.slider.setMaximum(255)
-        self.slider.setValue(layerstack.opacities[index])
-        self.slider.valueChanged.connect(self.change_opacity)
-        self.setFixedWidth(self.WIDTH)
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.slider)
-
-    def exec_(self, point, size):
-        self.resize(size)
-        point.setX(point.x() - (self.WIDTH / 2))
-        point.setY(point.y() + (size.height() / 2))
-        self.move(point)
-        path = QtGui.QPainterPath()
-        path.addRoundedRect(self.rect(), 10, 10)
-        mask = QtGui.QRegion(path.toFillPolygon().toPolygon())
-        self.setMask(mask)
-        self.show()
-
-    def change_opacity(self, value):
-        self.layerstack.opacities[self.index] = value
-        self.parent().repaint()
-
-
-class RenameDialog(QtWidgets.QWidget):
-    def __init__(self, layerstack, index, parent=None):
-        super().__init__(parent)
-        self.index = index
-        self.layerstack = layerstack
-        self.setWindowFlag(QtCore.Qt.FramelessWindowHint)
-        self.setWindowFlag(QtCore.Qt.Popup)
-        self.text = QtWidgets.QLineEdit(layerstack.names[index])
-        self.text.focusOutEvent = self.focusOutEvent
-        layout = QtWidgets.QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.text)
-        self.text.returnPressed.connect(self.close)
-
-    def closeEvent(self, _):
-        if self.layerstack.names[self.index] != self.text.text():
-            self.layerstack.names[self.index] = self.text.text()
-            self.parent().repaint()
-
-    def exec_(self, point, size):
-        self.move(point)
-        self.resize(size)
-        self.show()
-        self.text.setFocus(QtCore.Qt.MouseFocusReason)
-        self.text.selectAll()
-
-
-def grow_rect(rect, value):
-    if rect is None:
-        return None
-    return QtCore.QRectF(
-        rect.left() - value,
-        rect.top() - value,
-        rect.width() + (value * 2),
-        rect.height() + (value * 2))

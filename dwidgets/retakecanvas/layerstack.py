@@ -1,8 +1,8 @@
 
-import math
 from PySide2 import QtCore
 from dwidgets.retakecanvas.shapes import (
     Stroke, Arrow, Rectangle, Circle, Bitmap)
+from dwidgets.retakecanvas.mathutils import distance_line_point
 
 UNDOLIMIT = 50
 
@@ -22,20 +22,32 @@ class LayerStack:
         self.wash_opacity = 0
         self.undostack = []
         self.redostack = []
-        self.add_undo_state()
+        self._current_index = None
 
-    def add(self, undo=True, name=None):
+    @property
+    def current_index(self):
+        return self._current_index
+
+    @current_index.setter
+    def current_index(self, value):
+        self._current_index = value
+
+    def add(self, name):
         self.layers.append([])
         self.locks.append(False)
         self.opacities.append(255)
-        self.names.append(name or f'Layer {len(self.layers)}')
+        self.names.append(name)
         self.visibilities.append(True)
         self.current_index = len(self.layers) - 1
-        if undo:
-            self.add_undo_state()
 
     def set_current(self, index):
         self.current_index = index
+
+    @property
+    def is_locked(self):
+        if self.current_index is None:
+            return False
+        return self.locks[self.current_index]
 
     @property
     def current(self):
@@ -46,7 +58,6 @@ class LayerStack:
     def remove(self, element):
         if self.current:
             self.current.remove(element)
-        self.add_undo_state()
 
     def delete(self, index=None):
         if not index and self.current:
@@ -63,63 +74,8 @@ class LayerStack:
 
         if not self.layers:
             self.current_index = None
-            self.add_undo_state()
             return
         self.current_index = index - 1
-        self.add_undo_state()
-
-    def add_undo_state(self):
-        self.redostack = []
-        state = {
-            'layers': [[elt.copy() for elt in layer] for layer in self.layers],
-            'locks': self.locks.copy(),
-            'opacities': self.opacities.copy(),
-            'names': self.names.copy(),
-            'visibilities': self.visibilities.copy(),
-            'current': self.current_index,
-            'wash_color': self.wash_color,
-            'wash_opacity': self.wash_opacity
-        }
-        self.undostack.append(state)
-        self.undostack = self.undostack[-UNDOLIMIT:]
-
-    def restore_state(self, state):
-        layers = [[elt.copy() for elt in layer] for layer in state['layers']]
-        self.layers = layers
-        self.locks = state['locks']
-        self.opacities = state['opacities']
-        self.names = state['names']
-        self.visibilities = state['visibilities']
-
-        self.current_index = state['current']
-        self.wash_color = state['wash_color']
-        self.wash_opacity = state['wash_opacity']
-
-    def undo(self):
-        if not self.undostack:
-            return
-
-        state = self.undostack.pop()
-        self.redostack.append(state)
-        if self.undostack:
-            self.restore_state(self.undostack[-1])
-        else:
-            self.restore_state({
-                'layers': [],
-                'locks': [],
-                'names': [],
-                'opacities': [],
-                'visibilities': [],
-                'current': None,
-                'wash_color': '#FFFFFF',
-                'wash_opacity': 0})
-
-    def redo(self):
-        if not self.redostack:
-            return
-        state = self.redostack.pop()
-        self.undostack.append(state)
-        self.restore_state(state)
 
     def find_element_at(self, point):
         if not self.current:
@@ -153,7 +109,7 @@ def is_point_hover_element(element, point):
     elif isinstance(element, Stroke):
         return is_point_hover_stroke(element, point)
     elif isinstance(element, Arrow):
-        distance = _distance_line_point(element.line, point)
+        distance = distance_line_point(element.line, point)
         return distance <= element.tailwidth
     elif isinstance(element, (Rectangle, Circle)):
         # TODO
@@ -170,46 +126,8 @@ def is_point_hover_stroke(stroke, point):
             continue
         end = stroke_point
         line = QtCore.QLineF(start, end)
-        distance = _distance_line_point(line, point)
+        distance = distance_line_point(line, point)
         start = stroke_point
         if distance <= size:
             return True
     return False
-
-
-def _distance_line_point(line, point):
-    return distance_point_segment(
-        point.x(), point.y(),
-        line.p1().x(), line.p1().y(),
-        line.p2().x(), line.p2().y())
-
-
-def line_magnitude(x1, y1, x2, y2):
-    return math.sqrt(math.pow((x2 - x1), 2) + math.pow((y2 - y1), 2))
-
-
-def distance_point_segment(px, py, x1, y1, x2, y2):
-    """
-    https://maprantala.com/
-        2010/05/16/measuring-distance-from-a-point-to-a-line-segment-in-python
-    http://local.wasp.uwa.edu.au/~pbourke/geometry/pointline/source.vba
-    """
-    line_mag = line_magnitude(x1, y1, x2, y2)
-
-    if line_mag < 0.00000001:
-        return 9999
-
-    u1 = (((px - x1) * (x2 - x1)) + ((py - y1) * (y2 - y1)))
-    u = u1 / (line_mag * line_mag)
-
-    if (u < 0.00001) or (u > 1):
-        # closest point does not fall within the line segment, take the
-        # shorter distance to an endpoint.
-        ix = line_magnitude(px, py, x1, y1)
-        iy = line_magnitude(px, py, x2, y2)
-        return iy if ix > iy else ix
-    else:
-        # Intersecting point is on the line, use the formula
-        ix = x1 + u * (x2 - x1)
-        iy = y1 + u * (y2 - y1)
-        return line_magnitude(px, py, ix, iy)

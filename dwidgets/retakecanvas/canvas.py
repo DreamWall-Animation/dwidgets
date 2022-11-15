@@ -3,6 +3,7 @@ import sys
 import math
 import time
 from PySide2 import QtCore, QtWidgets, QtGui
+from dwidgets.retakecanvas.model import RetakeCanvasModel
 from dwidgets.retakecanvas.tools import NavigationTool
 from dwidgets.retakecanvas.selection import selection_rect
 from dwidgets.retakecanvas.shapes import (
@@ -10,83 +11,74 @@ from dwidgets.retakecanvas.shapes import (
 from dwidgets.retakecanvas.viewport import ViewportMapper
 
 
-class Canvas(QtWidgets.QWidget):
-    imageDropped = QtCore.Signal()
-    HORIZONTAL = 0
-    VERTICAL = 1
-    GRID = 2
+def disable_if_model_locked(method):
+    def decorator(self, *args, **kwargs):
+        if self.model.locked:
+            return
+        return method(self, *args, **kwargs)
+    return decorator
 
-    def __init__(
-            self,
-            drawcontext,
-            layerstack,
-            imagesstack,
-            navigator,
-            selection,
-            viewportmapper,
-            parent=None):
+
+class Canvas(QtWidgets.QWidget):
+    isUpdated = QtCore.Signal()
+
+    def __init__(self, model, parent=None):
         super().__init__(parent)
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
 
-        self.baseimage = None
-        self.layout_type = 0
-        self.selection = selection
-        self.drawcontext = drawcontext
-        self.layerstack = layerstack
-        self.imagesstack = imagesstack
-        self.navigator = navigator
-        self.viewportmapper = viewportmapper
-        self.tool = NavigationTool(
-            canvas=self,
-            drawcontext=self.drawcontext,
-            layerstack=self.layerstack,
-            navigator=self.navigator,
-            viewportmapper=self.viewportmapper)
+        self.model = model
+        self.selection = model.selection
+        self.tool = NavigationTool(canvas=self, model=self.model)
         self.timer = QtCore.QTimer(self)
         self.timer.start(300)
         self.timer.timeout.connect(self.repaint)
 
+    def set_model(self, model):
+        self.model = model
+        size = model.baseimage.size()
+        self.model.viewportmapper.viewsize = QtCore.QSize(size)
+        self.repaint()
+
+    @disable_if_model_locked
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             return event.accept()
 
+    @disable_if_model_locked
     def dropEvent(self, event):
         paths = [
             os.path.expandvars(url.path())
             for url in event.mimeData().urls()]
         images = [QtGui.QImage(p) for p in paths]
         images = [image for image in images if not image.isNull()]
-        self.imagesstack.extend(images)
+        for image in images:
+            self.model.append_image(image)
+        self.model.add_undo_state()
         self.repaint()
-        self.imageDropped.emit()
+        self.isUpdated.emit()
 
     def sizeHint(self):
-        if not self.baseimage:
+        if not self.model.baseimage:
             return QtCore.QSize(300, 300)
-        return self.baseimage.size()
+        return self.model.baseimage.size()
 
     def resizeEvent(self, event):
-        self.viewportmapper.viewsize = event.size()
+        self.model.viewportmapper.viewsize = event.size()
         size = (event.size() - event.oldSize()) / 2
         offset = QtCore.QPointF(size.width(), size.height())
-        self.viewportmapper.origin -= offset
+        self.model.viewportmapper.origin -= offset
         self.repaint()
 
     def reset(self):
-        if not self.baseimage:
+        if not self.model.baseimage:
             return
-        self.viewportmapper.viewsize = self.size()
+        self.model.viewportmapper.viewsize = self.size()
         rect = get_global_rect(
-            self.baseimage,
-            self.imagesstack,
-            self.layout_type)
-        self.viewportmapper.focus(rect)
-        self.repaint()
-
-    def set_baseimage(self, image):
-        self.baseimage = image
-        self.viewportmapper.viewsize = QtCore.QSize(image.size())
+            self.model.baseimage,
+            self.model.imagestack,
+            self.model.imagestack_layout)
+        self.model.viewportmapper.focus(rect)
         self.repaint()
 
     def enterEvent(self, _):
@@ -102,23 +94,24 @@ class Canvas(QtWidgets.QWidget):
 
     def mousePressEvent(self, event):
         self.setFocus(QtCore.Qt.MouseFocusReason)
-        self.navigator.update(event, pressed=True)
+        self.model.navigator.update(event, pressed=True)
         self.tool.mousePressEvent(event)
         self.update_cursor()
         self.repaint()
 
     def mouseReleaseEvent(self, event):
-        self.navigator.update(event, pressed=False)
+        self.model.navigator.update(event, pressed=False)
         result = self.tool.mouseReleaseEvent(event)
-        if result is True and self.layerstack.current is not None:
-            self.layerstack.add_undo_state()
+        if result is True and self.model.layerstack.current is not None:
+            self.model.add_undo_state()
+            self.isUpdated.emit()
         self.update_cursor()
         self.repaint()
 
     def keyPressEvent(self, event):
         if event.isAutoRepeat():
             return
-        self.navigator.update(event, pressed=True)
+        self.model.navigator.update(event, pressed=True)
         self.tool.keyPressEvent(event)
         self.update_cursor()
         self.repaint()
@@ -126,7 +119,7 @@ class Canvas(QtWidgets.QWidget):
     def keyReleaseEvent(self, event):
         if event.isAutoRepeat():
             return
-        self.navigator.update(event, pressed=False)
+        self.model.navigator.update(event, pressed=False)
         self.tool.keyReleaseEvent(event)
         self.update_cursor()
         self.repaint()
@@ -139,6 +132,7 @@ class Canvas(QtWidgets.QWidget):
         self.tool.wheelEvent(event)
         self.repaint()
 
+    @disable_if_model_locked
     def set_tool(self, tool):
         self.tool = tool
         self.update_cursor()
@@ -163,8 +157,8 @@ class Canvas(QtWidgets.QWidget):
             QtWidgets.QApplication.setOverrideCursor(override)
 
     def render(self, layerstack=None, baseimage=None):
-        layerstack = layerstack or self.layerstack
-        baseimage = baseimage or self.baseimage
+        layerstack = layerstack or self.model.layerstack
+        baseimage = baseimage or self.model.baseimage
         if not baseimage:
             return
 
@@ -186,7 +180,7 @@ class Canvas(QtWidgets.QWidget):
         return image
 
     def paintEvent(self, _):
-        if not self.baseimage:
+        if not self.model.baseimage:
             return
 
         painter = QtGui.QPainter(self)
@@ -197,33 +191,44 @@ class Canvas(QtWidgets.QWidget):
             painter.drawRect(self.rect())
             painter.setBrush(QtCore.Qt.darkBlue)
 
-            rects = get_images_rects(
-                self.baseimage,
-                self.imagesstack,
-                layout=self.layout_type)
-            for image, rect in zip(self.imagesstack, rects):
-                rect = self.viewportmapper.to_viewport_rect(rect)
-                painter.drawImage(rect, image)
-
-            size = self.baseimage.size()
+            size = self.model.baseimage.size()
             rect = QtCore.QRectF(0, 0, size.width(), size.height())
-            rect = self.viewportmapper.to_viewport_rect(rect)
-            painter.drawRect(rect)
-            painter.drawImage(rect, self.baseimage)
+            rects = get_images_rects(
+                self.model.baseimage,
+                self.model.imagestack,
+                layout=self.model.imagestack_layout) + [rect]
 
-            if self.layerstack.wash_opacity:
+            if self.model.imagestack_layout != RetakeCanvasModel.STACKED:
+                images = self.model.imagestack + [self.model.baseimage]
+                for image, rect in zip(images, rects):
+                    rect = self.model.viewportmapper.to_viewport_rect(rect)
+                    painter.drawImage(rect, image)
+            else:
+                images = list(reversed(self.model.imagestack)) + [self.model.baseimage]
+                wipes = self.model.imagestack_wipes[:]
+                wipes.append(self.model.baseimage_wipes)
+                for image, rect, wipe in zip(images, rects, wipes):
+                    image = image.scaled(rect.size().toSize(), QtCore.Qt.KeepAspectRatio)
+                    image = image.copy(wipe)
+                    wipe = self.model.viewportmapper.to_viewport_rect(wipe)
+                    painter.drawImage(wipe, image)
+
+            if self.model.layerstack.wash_opacity:
                 painter.setPen(QtCore.Qt.transparent)
-                color = QtGui.QColor(self.layerstack.wash_color)
-                color.setAlpha(self.layerstack.wash_opacity)
+                color = QtGui.QColor(self.model.layerstack.wash_color)
+                color.setAlpha(self.model.layerstack.wash_opacity)
                 painter.setBrush(color)
                 painter.drawRect(rect)
 
-            for layer, _, _, visible, opacity in self.layerstack:
+            for layer, _, _, visible, opacity in self.model.layerstack:
                 if not visible:
                     continue
-                draw_layer(painter, layer, opacity, self.viewportmapper)
+                draw_layer(painter, layer, opacity, self.model.viewportmapper)
 
-            draw_selection(painter, self.selection, self.viewportmapper)
+            draw_selection(
+                painter,
+                self.model.selection,
+                self.model.viewportmapper)
             self.tool.draw(painter)
         finally:
             painter.end()
@@ -231,32 +236,28 @@ class Canvas(QtWidgets.QWidget):
 
 def get_images_rects(baseimage, stackimages, layout=0):
     """
-    layout: int
-        HORIZONTAL = 0
-        VERTICAL = 1
-        GRID = 2
-        OVERLAP = 3
+    layout: RetakeCanvasModel.GRID | STACKED | HORIZONTAL | VERTICAL
     """
     images = [baseimage] + stackimages
     rects = [
         QtCore.QRectF(0, 0, image.size().width(), image.size().height())
         for image in images]
     last_rect = None
-    if layout == 0:
+    if layout == RetakeCanvasModel.HORIZONTAL:
         for rect in rects:
             if not last_rect:
                 last_rect = rect
                 continue
             rect.moveTopLeft(last_rect.topRight())
             last_rect = rect
-    elif layout == 1:
+    elif layout == RetakeCanvasModel.VERTICAL:
         for rect in rects:
             if not last_rect:
                 last_rect = rect
                 continue
             rect.moveTopLeft(last_rect.bottomLeft())
             last_rect = rect
-    elif layout == 2:
+    elif layout == RetakeCanvasModel.GRID:
         set_grid_layout(rects)
     return rects[1:]
 
