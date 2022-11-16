@@ -211,6 +211,10 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.smoothdraw.setCheckable(True)
         self.smoothdraw.tool = tools.SmoothDrawTool
         self.smoothdraw.triggered.connect(self.set_tool)
+        self.eraser = QtWidgets.QAction(icon('eraser.png'), '', self)
+        self.eraser.setCheckable(True)
+        self.eraser.tool = tools.EraserTool
+        self.eraser.triggered.connect(self.set_tool)
         self.rectangle = QtWidgets.QAction(icon('rectangle.png'), '', self)
         self.rectangle.setCheckable(True)
         self.rectangle.triggered.connect(self.set_tool)
@@ -236,7 +240,8 @@ class RetakeCanvas(QtWidgets.QWidget):
         set_shortcut('CTRL+D', self, self.model.selection.clear)
         set_shortcut('M', self, self.move_a.trigger)
         set_shortcut('B', self, self.freedraw.trigger)
-        set_shortcut('s', self, self.selection_a.trigger)
+        set_shortcut('E', self, self.eraser.trigger)
+        set_shortcut('S', self, self.selection_a.trigger)
         set_shortcut('R', self, self.rectangle.trigger)
         set_shortcut('C', self, self.circle.trigger)
         set_shortcut('A', self, self.arrow.trigger)
@@ -247,6 +252,7 @@ class RetakeCanvas(QtWidgets.QWidget):
             self.move_a: tools.MoveTool(**kwargs),
             self.selection_a: tools.SelectionTool(**kwargs),
             self.freedraw: tools.DrawTool(**kwargs),
+            self.eraser: tools.EraserTool(**kwargs),
             self.smoothdraw: tools.SmoothDrawTool(**kwargs),
             self.rectangle: tools.RectangleTool(**kwargs),
             self.circle: tools.CircleTool(**kwargs),
@@ -259,6 +265,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.tools_group.addAction(self.selection_a)
         self.tools_group.addAction(self.freedraw)
         self.tools_group.addAction(self.smoothdraw)
+        self.tools_group.addAction(self.eraser)
         self.tools_group.addAction(self.rectangle)
         self.tools_group.addAction(self.circle)
         self.tools_group.addAction(self.arrow)

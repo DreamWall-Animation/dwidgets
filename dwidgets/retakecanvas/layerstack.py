@@ -2,7 +2,7 @@
 from PySide2 import QtCore
 from dwidgets.retakecanvas.shapes import (
     Stroke, Arrow, Rectangle, Circle, Bitmap)
-from dwidgets.retakecanvas.mathutils import distance_line_point
+from dwidgets.retakecanvas.mathutils import distance_qline_qpoint
 
 UNDOLIMIT = 50
 
@@ -117,7 +117,7 @@ def is_point_hover_element(element, point):
     elif isinstance(element, Stroke):
         return is_point_hover_stroke(element, point)
     elif isinstance(element, Arrow):
-        distance = distance_line_point(element.line, point)
+        distance = distance_qline_qpoint(element.line, point)
         return distance <= element.tailwidth
     elif isinstance(element, (Rectangle, Circle)):
         # TODO
@@ -134,7 +134,7 @@ def is_point_hover_stroke(stroke, point):
             continue
         end = stroke_point
         line = QtCore.QLineF(start, end)
-        distance = distance_line_point(line, point)
+        distance = distance_qline_qpoint(line, point)
         start = stroke_point
         if distance <= size:
             return True

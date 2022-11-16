@@ -1,5 +1,5 @@
-import sys
 from PySide2 import QtCore
+from dwidgets.retakecanvas.qtutils import points_rect
 from dwidgets.retakecanvas.shapes import Arrow, Rectangle, Circle, Stroke
 
 
@@ -75,11 +75,6 @@ def selection_rect(selection):
         # TODO:
         #     points.extend((element.rect.topLeft(), element.bottomRight()))
         #     draw_bitmap(painter, element, viewportmapper)
-    left, top = sys.maxsize, sys.maxsize
-    right, bottom = -sys.maxsize, -sys.maxsize
-    for point in points:
-        left = min((point.x(), left))
-        top = min((point.y(), top))
-        right = max((point.x(), right))
-        bottom = max((point.y(), bottom))
-    return QtCore.QRectF(left, top, right - left, bottom - top)
+    return points_rect(points)
+
+

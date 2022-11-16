@@ -4,6 +4,7 @@ import math
 import time
 from PySide2 import QtCore, QtWidgets, QtGui
 from dwidgets.retakecanvas.model import RetakeCanvasModel
+from dwidgets.retakecanvas.qtutils import points_rect
 from dwidgets.retakecanvas.tools import NavigationTool
 from dwidgets.retakecanvas.selection import selection_rect
 from dwidgets.retakecanvas.shapes import (
@@ -386,8 +387,36 @@ def draw_stroke(painter, stroke, viewportmapper):
 
 
 def draw_selection(painter, selection, viewportmapper):
+    print(selection.elements)
     if not selection:
         return
+    if len(selection) > 1:
+        draw_long_selection(painter, selection, viewportmapper)
+        return
+    draw_unique_selection(painter, selection, viewportmapper)
+
+
+def draw_unique_selection(painter, selection, viewportmapper):
+    element = selection[0]
+    Circle, Rectangle, Arrow, Stroke, Bitmap
+    if isinstance(element, Stroke):
+        points = [p for p, _ in element]
+        rect = viewportmapper.to_viewport_rect(points_rect(points))
+    elif isinstance(element, (Arrow, Rectangle, Circle)):
+        rect = QtCore.QRectF(element.start, element.end)
+        rect = viewportmapper.to_viewport_rect(rect)
+    elif isinstance(element, Bitmap):
+        rect = QtCore.QRectF(element.rect)
+    else:
+        return
+    painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
+    painter.setPen(QtCore.Qt.yellow)
+    painter.setBrush(QtCore.Qt.NoBrush)
+    painter.drawRect(rect)
+    painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+
+
+def draw_long_selection(painter, selection, viewportmapper):
     painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
     painter.setBrush(QtCore.Qt.yellow)
     painter.setPen(QtCore.Qt.black)

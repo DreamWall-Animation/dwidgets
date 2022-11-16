@@ -83,6 +83,12 @@ class Stroke:
     def __iter__(self):
         return self.points.__iter__()
 
+    def __getitem__(self, index):
+        return self.points[index]
+
+    def __len__(self):
+        return len(self.points)
+
     def copy(self):
         stroke = Stroke(None, None, None)
         stroke.points = deepcopy(self.points)

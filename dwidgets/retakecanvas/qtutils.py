@@ -1,4 +1,5 @@
 import os
+import sys
 from PySide2 import QtGui, QtCore, QtWidgets
 
 
@@ -34,3 +35,14 @@ def grow_rect(rect, value):
         rect.top() - value,
         rect.width() + (value * 2),
         rect.height() + (value * 2))
+
+
+def points_rect(points):
+    left, top = sys.maxsize, sys.maxsize
+    right, bottom = -sys.maxsize, -sys.maxsize
+    for point in points:
+        left = min((point.x(), left))
+        top = min((point.y(), top))
+        right = max((point.x(), right))
+        bottom = max((point.y(), bottom))
+    return QtCore.QRectF(left, top, right - left, bottom - top)

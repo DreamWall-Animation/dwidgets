@@ -1,5 +1,5 @@
 from PySide2 import QtCore, QtGui
-from dwidgets.retakecanvas.mathutils import distance_line_point
+from dwidgets.retakecanvas.mathutils import distance_qline_qpoint
 from dwidgets.retakecanvas.model import RetakeCanvasModel
 from dwidgets.retakecanvas.qtutils import grow_rect
 from dwidgets.retakecanvas.tools.basetool import NavigationTool
@@ -97,7 +97,7 @@ class WipesTool(NavigationTool):
 def detect_edge(rect, point):
     sides = WipesTool.LEFT, WipesTool.TOP, WipesTool.RIGHT, WipesTool.BOTTOM
     for side in sides:
-        if distance_line_point(side_line(rect, side), point) < 20:
+        if distance_qline_qpoint(side_line(rect, side), point) < 20:
             return side
 
 

@@ -8,6 +8,7 @@ class DrawTool(NavigationTool):
         super().__init__(*args, **kwargs)
         self.pressure = 1
         self.stroke = None
+        self.use_tablet = False
 
     def mousePressEvent(self, event):
         if self.layerstack.is_locked or self.navigator.space_pressed:
@@ -21,7 +22,9 @@ class DrawTool(NavigationTool):
             size=self.pressure * self.drawcontext.size)
         self.layerstack.current.append(self.stroke)
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, event, from_tablet=False):
+        if self.use_tablet and not from_tablet:
+            return
         if super().mouseMoveEvent(event):
             return
         if self.stroke:
@@ -30,6 +33,7 @@ class DrawTool(NavigationTool):
                 size=self.pressure * self.drawcontext.size)
 
     def mouseReleaseEvent(self, event):
+        self.use_tablet = False
         if self.stroke:
             if not self.stroke.is_valid:
                 self.layerstack.current.remove(self.stroke)
@@ -39,7 +43,9 @@ class DrawTool(NavigationTool):
         return True
 
     def tabletEvent(self, event):
+        self.use_tablet = True
         self.pressure = event.pressure()
+        self.mouseMoveEvent(event, from_tablet=True)
 
     def window_cursor_visible(self):
         return self.navigator.space_pressed or self.layerstack.is_locked
@@ -136,4 +142,3 @@ class SmoothDrawTool(NavigationTool):
         point = self.stroke.points[-1][0]
         point = self.viewportmapper.to_viewport_coords(point)
         painter.drawLine(pos, point)
-

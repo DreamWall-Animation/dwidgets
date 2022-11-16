@@ -1,7 +1,7 @@
 import math
 
 
-def distance_line_point(line, point):
+def distance_qline_qpoint(line, point):
     return distance_point_segment(
         point.x(), point.y(),
         line.p1().x(), line.p1().y(),
