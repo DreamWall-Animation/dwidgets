@@ -1,14 +1,24 @@
 from PySide2 import QtCore
 from dwidgets.retakecanvas.qtutils import points_rect
-from dwidgets.retakecanvas.shapes import Arrow, Rectangle, Circle, Stroke
+from dwidgets.retakecanvas.shapes import (
+    Arrow, Rectangle, Circle, Stroke, Bitmap)
 
 
 class Selection:
+    NO = 0
+    SUBOBJECTS = 1
+    ELEMENT = 2
+
     def __init__(self):
-        self.elements = []
+        self.sub_elements = []
+        self.element = None
         self.mode = 'replace'
 
     def set(self, elements):
+        if isinstance(elements, (Arrow, Rectangle, Circle, Stroke, Bitmap)):
+            self.elements = []
+            self.element = elements
+            return
         if self.mode == 'add':
             if elements is None:
                 return
@@ -25,41 +35,50 @@ class Selection:
             if elements is None:
                 return
             for element in elements:
-                if element in self.elements:
+                if element in self.sub_elements:
                     self.remove(element)
 
+    @property
+    def type(self):
+        if self.element is not None:
+            return self.ELEMENT
+        if self.sub_elements:
+            return self.SUBOBJECTS
+        return self.NO
+
     def replace(self, elements):
-        self.elements = elements
+        self.sub_elements = elements
 
     def add(self, elements):
-        self.elements.extend([s for s in elements if s not in self])
+        self.sub_elements.extend([s for s in elements if s not in self])
 
     def remove(self, shape):
-        self.elements.remove(shape)
+        self.sub_elements.remove(shape)
 
     def invert(self, elements):
         for element in elements:
-            if element not in self.elements:
+            if element not in self.sub_elements:
                 self.add([element])
             else:
                 self.remove(element)
 
     def clear(self):
-        self.elements = []
+        self.sub_elements = []
+        self.element = None
 
     def __len__(self):
-        return len(self.elements)
+        return len(self.sub_elements)
 
     def __bool__(self):
-        return bool(self.elements)
+        return bool(self.type)
 
     __nonzero__ = __bool__
 
     def __getitem__(self, i):
-        return self.elements[i]
+        return self.sub_elements[i]
 
     def __iter__(self):
-        return self.elements.__iter__()
+        return self.sub_elements.__iter__()
 
 
 def selection_rect(selection):

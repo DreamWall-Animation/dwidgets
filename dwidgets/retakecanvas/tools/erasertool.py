@@ -98,5 +98,3 @@ def erase_on_layer(line, width, layer):
             layer.insert(i, stroke)
         elif action == 'delete':
             del layer[i]
-
-

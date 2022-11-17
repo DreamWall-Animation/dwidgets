@@ -1,6 +1,7 @@
 from PySide2 import QtCore, QtGui
 from dwidgets.retakecanvas.shapes import Stroke
 from dwidgets.retakecanvas.tools.basetool import NavigationTool
+from dwidgets.retakecanvas.mathutils import distance
 
 
 class DrawTool(NavigationTool):
@@ -8,7 +9,8 @@ class DrawTool(NavigationTool):
         super().__init__(*args, **kwargs)
         self.pressure = 1
         self.stroke = None
-        self.use_tablet = False
+        self.old_time = None
+        self.old_mouse_time = None
 
     def mousePressEvent(self, event):
         if self.layerstack.is_locked or self.navigator.space_pressed:
@@ -22,18 +24,16 @@ class DrawTool(NavigationTool):
             size=self.pressure * self.drawcontext.size)
         self.layerstack.current.append(self.stroke)
 
-    def mouseMoveEvent(self, event, from_tablet=False):
-        if self.use_tablet and not from_tablet:
-            return
+    def mouseMoveEvent(self, event):
         if super().mouseMoveEvent(event):
             return
         if self.stroke:
             self.stroke.add_point(
                 point=self.viewportmapper.to_units_coords(event.pos()),
                 size=self.pressure * self.drawcontext.size)
+        event.accept()
 
     def mouseReleaseEvent(self, event):
-        self.use_tablet = False
         if self.stroke:
             if not self.stroke.is_valid:
                 self.layerstack.current.remove(self.stroke)
@@ -43,9 +43,20 @@ class DrawTool(NavigationTool):
         return True
 
     def tabletEvent(self, event):
-        self.use_tablet = True
+        if event.type() == QtGui.QTabletEvent.TabletPress:
+            event.accept()
+            return
+        if event.type() == QtGui.QTabletEvent.TabletRelease:
+            event.accept()
+            return
         self.pressure = event.pressure()
-        self.mouseMoveEvent(event, from_tablet=True)
+        point = self.viewportmapper.to_units_coords(event.pos())
+        width = self.pressure * self.drawcontext.size
+        if self.stroke and distance(point, self.stroke[-1][0]) > width:
+            self.stroke.add_point(
+                point=point,
+                size=width)
+        event.accept()
 
     def window_cursor_visible(self):
         return self.navigator.space_pressed or self.layerstack.is_locked

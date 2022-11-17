@@ -1,6 +1,13 @@
 import math
 
 
+def distance(a, b):
+    """ return distance between two points """
+    x = (b.x() - a.x())**2
+    y = (b.y() - a.y())**2
+    return math.sqrt(abs(x + y))
+
+
 def distance_qline_qpoint(line, point):
     return distance_point_segment(
         point.x(), point.y(),

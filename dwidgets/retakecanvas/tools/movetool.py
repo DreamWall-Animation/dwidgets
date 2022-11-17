@@ -11,7 +11,6 @@ class MoveTool(NavigationTool):
         super().__init__(*args, **kwargs)
         self._mouse_ghost = None
         self.element_hover = None
-        self.element = None
 
     def mousePressEvent(self, event):
         return_condition = (
@@ -21,15 +20,14 @@ class MoveTool(NavigationTool):
         if return_condition:
             return
         self._mouse_ghost = event.pos()
-        self.element = self.element_hover
-        if self.selection and self.selection != self.element:
-            self.selection.clear()
+        if self.element_hover and self.selection.type != Selection.SUBOBJECTS:
+            self.selection.set(self.element_hover)
 
     def mouseMoveEvent(self, event):
         if super().mouseMoveEvent(event):
             return
         if not self._mouse_ghost:
-            if self.selection:
+            if self.selection.type:
                 units_pos = self.viewportmapper.to_units_coords(event.pos())
                 if selection_rect(self.selection).contains(units_pos):
                     self.element_hover = self.selection

@@ -1,12 +1,13 @@
 import os
 import sys
+import time
 import math
 import time
 from PySide2 import QtCore, QtWidgets, QtGui
 from dwidgets.retakecanvas.model import RetakeCanvasModel
 from dwidgets.retakecanvas.qtutils import points_rect
 from dwidgets.retakecanvas.tools import NavigationTool
-from dwidgets.retakecanvas.selection import selection_rect
+from dwidgets.retakecanvas.selection import selection_rect, Selection
 from dwidgets.retakecanvas.shapes import (
     Circle, Rectangle, Arrow, Stroke, Bitmap)
 from dwidgets.retakecanvas.viewport import ViewportMapper
@@ -34,6 +35,7 @@ class Canvas(QtWidgets.QWidget):
         self.timer = QtCore.QTimer(self)
         self.timer.start(300)
         self.timer.timeout.connect(self.repaint)
+        self.last_paint_time = None
 
     def set_model(self, model):
         self.model = model
@@ -127,6 +129,9 @@ class Canvas(QtWidgets.QWidget):
 
     def tabletEvent(self, event):
         self.tool.tabletEvent(event)
+        if self.last_paint_time and time.time() - self.last_paint_time < 0.05:
+            return
+        self.last_paint_time = time.time()
         self.repaint()
 
     def wheelEvent(self, event):
@@ -387,16 +392,15 @@ def draw_stroke(painter, stroke, viewportmapper):
 
 
 def draw_selection(painter, selection, viewportmapper):
-    print(selection.elements)
     if not selection:
         return
-    if len(selection) > 1:
-        draw_long_selection(painter, selection, viewportmapper)
+    if selection.type == Selection.SUBOBJECTS:
+        draw_subobjects_selection(painter, selection, viewportmapper)
         return
-    draw_unique_selection(painter, selection, viewportmapper)
+    draw_element_selection(painter, selection, viewportmapper)
 
 
-def draw_unique_selection(painter, selection, viewportmapper):
+def draw_element_selectionVersio(painter, selection, viewportmapper):
     element = selection[0]
     Circle, Rectangle, Arrow, Stroke, Bitmap
     if isinstance(element, Stroke):
@@ -416,7 +420,7 @@ def draw_unique_selection(painter, selection, viewportmapper):
     painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
 
-def draw_long_selection(painter, selection, viewportmapper):
+def draw_subobjects_selection(painter, selection, viewportmapper):
     painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
     painter.setBrush(QtCore.Qt.yellow)
     painter.setPen(QtCore.Qt.black)
