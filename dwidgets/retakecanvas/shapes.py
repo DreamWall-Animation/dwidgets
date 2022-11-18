@@ -70,11 +70,11 @@ class Arrow:
 
 class Stroke:
     def __init__(self, start, color, size):
-        self.points = [(start, size)]
+        self.points = [[start, size]]
         self.color = color
 
     def add_point(self, point, size):
-        self.points.append((point, size))
+        self.points.append([point, size])
 
     @property
     def is_valid(self):
@@ -85,6 +85,9 @@ class Stroke:
 
     def __getitem__(self, index):
         return self.points[index]
+
+    def __setitem__(self, index, value):
+        self.points[index] = value
 
     def __len__(self):
         return len(self.points)

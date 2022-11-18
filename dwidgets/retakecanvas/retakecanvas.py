@@ -10,7 +10,8 @@ from dwidgets.retakecanvas.layerstackview import LayerStackView
 from dwidgets.retakecanvas.model import RetakeCanvasModel
 from dwidgets.retakecanvas.qtutils import icon, set_shortcut
 from dwidgets.retakecanvas.settings import (
-    GeneralSettings, ArrowSettings, SmoothDrawSettings)
+    GeneralSettings, ArrowSettings, SmoothDrawSettings, ShapeSettings)
+from dwidgets.retakecanvas.selection import Selection
 from dwidgets.retakecanvas.shapes import Bitmap
 
 
@@ -188,6 +189,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.layerview.layoutChanged.connect(self.layout_changed)
         self.layerview.comparingRemoved.connect(self.remove_comparing)
         self.canvas = Canvas(self.model)
+        self.canvas.selectionChanged.connect(self.update_shape_settings_view)
         self.canvas.isUpdated.connect(self.layerview.sync_view)
 
         self.navigation = QtWidgets.QAction(icon('hand.png'), '', self)
@@ -289,11 +291,16 @@ class RetakeCanvas(QtWidgets.QWidget):
         settings_layout.addWidget(self.setting_widgets[self.arrow])
         settings_layout.addWidget(self.setting_widgets[self.smoothdraw])
 
+        self.shape_settings_label = ToolNameLabel('Shape Options')
+        self.shape_settings = ShapeSettings(self.canvas, self.model)
+
         self.left_widget = QtWidgets.QWidget()
         left_layout = QtWidgets.QVBoxLayout(self.left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.addWidget(ToolNameLabel('Tool Options'))
         left_layout.addLayout(settings_layout)
+        left_layout.addWidget(self.shape_settings_label)
+        left_layout.addWidget(self.shape_settings)
         left_layout.addWidget(self.layerview)
         left_layout.addStretch(1)
 
@@ -318,6 +325,11 @@ class RetakeCanvas(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(splitter)
         self.navigation.trigger()
+
+    def update_shape_settings_view(self):
+        state = self.shape_settings.update()
+        self.shape_settings.setVisible(state)
+        self.shape_settings_label.setVisible(state)
 
     def remove_comparing(self, index):
         self.model.delete_image(index)
@@ -404,6 +416,8 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.layerview.set_model(model)
         self.canvas.set_model(model)
         self.main_settings.set_model(model)
+        self.shape_settings.set_model(model)
+        self.update_shape_settings_view()
         for widget in self.tools.values():
             widget.set_model(model)
         self.layerview.sync_view()

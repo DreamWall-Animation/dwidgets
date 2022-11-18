@@ -53,7 +53,7 @@ class BaseTool:
     def mouseWheelEvent(self, event):
         ...
 
-    def tabletEvent(self, event):
+    def tabletMoveEvent(self, event):
         ...
 
     def wheelEvent(self, event):
@@ -83,7 +83,6 @@ class NavigationTool(BaseTool):
                 factor = (offset.x() + offset.y()) / 10
                 self.zoom(factor, self.navigator.zoom_anchor)
                 return True
-
         if self.navigator.left_pressed and self.navigator.space_pressed:
             offset = self.navigator.mouse_offset(event.pos())
             if offset is not None:
@@ -98,6 +97,9 @@ class NavigationTool(BaseTool):
 
     def mouseReleaseEvent(self, event):
         return False
+
+    def tabletMoveEvent(self, event):
+        return self.mouseMoveEvent(event)
 
     def window_cursor_visible(self):
         return True

@@ -28,6 +28,7 @@ class WipesTool(NavigationTool):
 
     def mousePressEvent(self, event):
         self.handeling = None not in (self.current_index, self.current_side)
+        print("press", self.current_index, self.current_side)
         return super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
@@ -60,6 +61,9 @@ class WipesTool(NavigationTool):
         self.handeling = False
         self.current_index = None
         self.current_side = None
+
+    def tabletMoveEvent(self, event):
+        self.mouseMoveEvent(event)
 
     def draw(self, painter):
         if self.model.imagestack_layout != RetakeCanvasModel.STACKED:

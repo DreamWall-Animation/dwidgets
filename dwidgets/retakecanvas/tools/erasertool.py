@@ -31,8 +31,9 @@ class EraserTool(NavigationTool):
         self._mouse_buffer = None
         return result
 
-    def tabletEvent(self, event):
+    def tabletMoveEvent(self, event):
         self.pressure = event.pressure()
+        self.mouseMoveEvent(event)
 
     def draw(self, painter):
         if self.navigator.space_pressed:
@@ -51,6 +52,8 @@ def split_data(stroke, points):
         i for (i, p1), p2 in itertools.product(enumerate(all_points), points)
         if p1 is p2]
     indexes = [i for i in range(len(stroke)) if i not in indexes]
+    if not indexes:
+        return []
     groups = []
     buff_index = None
     for index in indexes:

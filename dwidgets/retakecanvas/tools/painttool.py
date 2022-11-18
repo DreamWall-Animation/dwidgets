@@ -15,6 +15,7 @@ class DrawTool(NavigationTool):
     def mousePressEvent(self, event):
         if self.layerstack.is_locked or self.navigator.space_pressed:
             return
+        self.pressure = 1
         if self.layerstack.current is None:
             self.model.add_layer(undo=False, name='Stroke')
         self.selection.clear()
@@ -25,15 +26,12 @@ class DrawTool(NavigationTool):
         self.layerstack.current.append(self.stroke)
 
     def mouseMoveEvent(self, event):
-        if super().mouseMoveEvent(event):
-            return
-        if self.stroke:
-            self.stroke.add_point(
-                point=self.viewportmapper.to_units_coords(event.pos()),
-                size=self.pressure * self.drawcontext.size)
-        event.accept()
+        if not super().mouseMoveEvent(event):
+            self.add_point(event.pos())
 
     def mouseReleaseEvent(self, event):
+        if super().mouseMoveEvent(event):
+            return
         if self.stroke:
             if not self.stroke.is_valid:
                 self.layerstack.current.remove(self.stroke)
@@ -42,21 +40,19 @@ class DrawTool(NavigationTool):
             super().mouseReleaseEvent(event)
         return True
 
-    def tabletEvent(self, event):
-        if event.type() == QtGui.QTabletEvent.TabletPress:
-            event.accept()
-            return
-        if event.type() == QtGui.QTabletEvent.TabletRelease:
-            event.accept()
-            return
+    def tabletMoveEvent(self, event):
         self.pressure = event.pressure()
-        point = self.viewportmapper.to_units_coords(event.pos())
+        self.add_point(event.pos())
+
+    def add_point(self, position):
+        point = self.viewportmapper.to_units_coords(position)
         width = self.pressure * self.drawcontext.size
-        if self.stroke and distance(point, self.stroke[-1][0]) > width:
-            self.stroke.add_point(
-                point=point,
-                size=width)
-        event.accept()
+        valid = self.drawcontext.size / 2
+        if not self.stroke or distance(point, self.stroke[-1][0]) <= valid:
+            return
+        self.stroke.add_point(
+            point=point,
+            size=width)
 
     def window_cursor_visible(self):
         return self.navigator.space_pressed or self.layerstack.is_locked
@@ -85,7 +81,7 @@ class SmoothDrawTool(NavigationTool):
         self.pressure = 1
         self.stroke = None
         self.buffer = []
-        self.pressure_buffer = []
+        self.width_buffer = []
         self.buffer_lenght = 20
 
     def mousePressEvent(self, event):
@@ -97,27 +93,30 @@ class SmoothDrawTool(NavigationTool):
         point = self.viewportmapper.to_units_coords(event.pos())
         pressure = self.pressure * self.drawcontext.size
         self.buffer = [point]
-        self.pressure_buffer = [pressure]
+        self.width_buffer = [pressure]
         self.stroke = Stroke(
             start=point, color=self.drawcontext.color, size=pressure)
         self.layerstack.current.append(self.stroke)
 
     def mouseMoveEvent(self, event):
-        if super().mouseMoveEvent(event) or not self.stroke:
-            return
-        self.buffer.append(self.viewportmapper.to_units_coords(event.pos()))
+        if not super().mouseMoveEvent(event):
+            self.add_point(event.pos())
+
+    def add_point(self, point):
+        self.buffer.append(self.viewportmapper.to_units_coords(point))
+        self.width_buffer.append(self.pressure * self.drawcontext.size)
         if self.stroke:
             x = sum(p.x() for p in self.buffer) / len(self.buffer)
             y = sum(p.y() for p in self.buffer) / len(self.buffer)
             self.stroke.add_point(
                 point=QtCore.QPointF(x, y),
-                size=sum(self.pressure_buffer) / len(self.pressure_buffer))
+                size=sum(self.width_buffer) / len(self.width_buffer))
         self.buffer = self.buffer[-self.buffer_lenght:]
-        self.pressure_buffer = self.pressure_buffer[-self.buffer_lenght:]
+        self.width_buffer = self.width_buffer[-self.buffer_lenght:]
 
     def mouseReleaseEvent(self, event):
         self.buffer = []
-        self.pressure_buffer = []
+        self.width_buffer = []
         if self.stroke:
             if not self.stroke.is_valid:
                 self.layerstack.current.remove(self.stroke)
@@ -126,8 +125,10 @@ class SmoothDrawTool(NavigationTool):
             super().mouseReleaseEvent(event)
         return True
 
-    def tabletEvent(self, event):
+    def tabletMoveEvent(self, event):
         self.pressure = event.pressure()
+        self.add_point(event.pos())
+        return True
 
     def window_cursor_visible(self):
         return self.navigator.space_pressed

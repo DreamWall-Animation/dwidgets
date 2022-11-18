@@ -90,7 +90,7 @@ class LayerStack:
             return
         for layer in reversed(self.layers):
             for element in reversed(layer):
-                if isinstance(element, Arrow):
+                if isinstance(element, (Arrow, Rectangle)):
                     if is_point_hover_element(element.start, point):
                         return element.start
                     elif is_point_hover_element(element.end, point):
@@ -112,7 +112,7 @@ class LayerStack:
 
 def is_point_hover_element(element, point):
     if isinstance(element, (QtCore.QPoint, QtCore.QPointF)):
-        rect = QtCore.QRectF(element.x() - 5, element.y() - 5, 10, 10)
+        rect = QtCore.QRectF(element.x() - 10, element.y() - 10, 20, 20)
         return rect.contains(point)
     elif isinstance(element, Stroke):
         return is_point_hover_stroke(element, point)

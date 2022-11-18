@@ -38,6 +38,9 @@ class ShapeTool(NavigationTool):
             super().mouseReleaseEvent(event)
         return True
 
+    def tabletMoveEvent(self, event):
+        self.mouseMoveEvent(event)
+
     def window_cursor_override(self):
         result = super().window_cursor_override()
         if result:

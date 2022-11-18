@@ -20,38 +20,50 @@ class MoveTool(NavigationTool):
         if return_condition:
             return
         self._mouse_ghost = event.pos()
-        if self.element_hover and self.selection.type != Selection.SUBOBJECTS:
+        if self.element_hover is self.selection:
+            return
+        if self.element_hover:
             self.selection.set(self.element_hover)
+            self.canvas.selectionChanged.emit()
+            return
+        self.selection.clear()
+        self.canvas.selectionChanged.emit()
+
+    def set_hover_element(self, point):
+        if self.selection.type:
+            units_pos = self.viewportmapper.to_units_coords(point)
+            rect = selection_rect(self.selection)
+            if rect and rect.contains(units_pos):
+                self.element_hover = self.selection
+                return
+        point = self.viewportmapper.to_units_coords(point)
+        self.element_hover = self.layerstack.find_element_at(point)
 
     def mouseMoveEvent(self, event):
         if super().mouseMoveEvent(event):
             return
         if not self._mouse_ghost:
-            if self.selection.type:
-                units_pos = self.viewportmapper.to_units_coords(event.pos())
-                if selection_rect(self.selection).contains(units_pos):
-                    self.element_hover = self.selection
-                    return
-            point = self.viewportmapper.to_units_coords(event.pos())
-            self.element_hover = self.layerstack.find_element_at(point)
+            self.set_hover_element(event.pos())
             return
+
         point = event.pos()
         x = self.viewportmapper.to_units(self._mouse_ghost.x() - point.x())
         y = self.viewportmapper.to_units(self._mouse_ghost.y() - point.y())
         offset = QtCore.QPoint(x, y)
         self._mouse_ghost = event.pos()
-        if not self.element:
-            return
-        if isinstance(self.element, Selection):
+        if self.selection.type == Selection.SUBOBJECTS:
             shift_selection_content(self.selection, offset)
-        shift_element(self.element, offset)
+        elif self.selection.type == Selection.ELEMENT:
+            shift_element(self.selection.element, offset)
 
     def mouseReleaseEvent(self, event):
-        result = bool(self._mouse_ghost)
-        result = result and bool(self.selection or self.element)
-        self.element = None
+        result = bool(self._mouse_ghost) and bool(self.selection.type)
         self._mouse_ghost = None
         return result
+
+    def tabletMoveEvent(self, event):
+        self.mouseMoveEvent(event)
+        return True
 
     def window_cursor_override(self):
         cursor = super().window_cursor_override()
@@ -65,10 +77,12 @@ class MoveTool(NavigationTool):
     def draw(self, painter):
         if not isinstance(self.element_hover, (QtCore.QPoint, QtCore.QPointF)):
             return
-        painter.setBrush(QtCore.Qt.yellow)
-        painter.setPen(QtCore.Qt.black)
+        color = QtGui.QColor(QtCore.Qt.yellow)
+        color.setAlpha(75)
+        painter.setBrush(color)
+        painter.setPen(QtCore.Qt.NoPen)
         point = self.viewportmapper.to_viewport_coords(self.element_hover)
-        painter.drawRect(point.x() - 5, point.y() - 5, 10, 10)
+        painter.drawEllipse(point.x() - 20, point.y() - 20, 40, 40)
 
 
 def shift_element(element, offset):
@@ -100,6 +114,9 @@ class SelectionTool(NavigationTool):
         wrong_button = event.button() != QtCore.Qt.LeftButton
         if self.navigator.space_pressed or wrong_button:
             return
+        if self.selection.type == Selection.ELEMENT:
+            self.selection.clear()
+            self.canvas.selectionChanged.emit()
         self.start = self.viewportmapper.to_units_coords(event.pos())
 
     def mouseMoveEvent(self, event):
@@ -115,9 +132,13 @@ class SelectionTool(NavigationTool):
             rect = QtCore.QRectF(self.start, end)
             elements = layer_elements_in_rect(self.layerstack.current, rect)
             self.selection.set(elements)
+        self.canvas.selectionChanged.emit()
         self.start = None
         self.end = None
         return False
+
+    def tabletMoveEvent(self, event):
+        self.mouseMoveEvent(event)
 
     def window_cursor_override(self):
         cursor = super().window_cursor_override()

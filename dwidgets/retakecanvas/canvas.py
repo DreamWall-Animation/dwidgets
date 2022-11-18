@@ -23,11 +23,16 @@ def disable_if_model_locked(method):
 
 class Canvas(QtWidgets.QWidget):
     isUpdated = QtCore.Signal()
+    selectionChanged = QtCore.Signal()
 
     def __init__(self, model, parent=None):
         super().__init__(parent)
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
+        self.is_using_tablet = False
+        self.last_repaint_evaluation_time = 0
+        self.last_repaint_call_time = time.time()
+        self.captime = .1
 
         self.model = model
         self.selection = model.selection
@@ -35,7 +40,6 @@ class Canvas(QtWidgets.QWidget):
         self.timer = QtCore.QTimer(self)
         self.timer.start(300)
         self.timer.timeout.connect(self.repaint)
-        self.last_paint_time = None
 
     def set_model(self, model):
         self.model = model
@@ -91,6 +95,8 @@ class Canvas(QtWidgets.QWidget):
         QtWidgets.QApplication.restoreOverrideCursor()
 
     def mouseMoveEvent(self, event):
+        if self.is_using_tablet:
+            return
         self.tool.mouseMoveEvent(event)
         self.update_cursor()
         self.repaint()
@@ -98,16 +104,20 @@ class Canvas(QtWidgets.QWidget):
     def mousePressEvent(self, event):
         self.setFocus(QtCore.Qt.MouseFocusReason)
         self.model.navigator.update(event, pressed=True)
-        self.tool.mousePressEvent(event)
+        result = self.tool.mousePressEvent(event)
         self.update_cursor()
-        self.repaint()
+        if result:
+            self.repaint()
 
     def mouseReleaseEvent(self, event):
+        if self.is_using_tablet:
+            return
         self.model.navigator.update(event, pressed=False)
         result = self.tool.mouseReleaseEvent(event)
         if result is True and self.model.layerstack.current is not None:
             self.model.add_undo_state()
             self.isUpdated.emit()
+        self.last_repaint_evaluation_time = 0
         self.update_cursor()
         self.repaint()
 
@@ -128,11 +138,29 @@ class Canvas(QtWidgets.QWidget):
         self.repaint()
 
     def tabletEvent(self, event):
-        self.tool.tabletEvent(event)
-        if self.last_paint_time and time.time() - self.last_paint_time < 0.05:
+        if event.type() == QtGui.QTabletEvent.TabletPress:
+            self.is_using_tablet = True
+            self.timer.setInterval(15)
+            event.accept()
             return
-        self.last_paint_time = time.time()
+        if event.type() == QtGui.QTabletEvent.TabletRelease:
+            self.is_using_tablet = False
+            self.timer.setInterval(300)
+            event.accept()
+            return
+        self.tool.tabletMoveEvent(event)
+        self.update_cursor()
+
+    def cap_repaint(self):
+        now = time.time()
+        delta = now - self.last_repaint_call_time
+        self.captime = max(0.02, delta)
+        if delta < self.captime:
+            return
+        self.last_repaint_call_time = now
+        start_time = time.time()
         self.repaint()
+        self.last_repaint_evaluation_time = time.time() - start_time
 
     def wheelEvent(self, event):
         self.tool.wheelEvent(event)
@@ -188,7 +216,6 @@ class Canvas(QtWidgets.QWidget):
     def paintEvent(self, _):
         if not self.model.baseimage:
             return
-
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         try:
@@ -392,25 +419,23 @@ def draw_stroke(painter, stroke, viewportmapper):
 
 
 def draw_selection(painter, selection, viewportmapper):
-    if not selection:
-        return
     if selection.type == Selection.SUBOBJECTS:
         draw_subobjects_selection(painter, selection, viewportmapper)
-        return
-    draw_element_selection(painter, selection, viewportmapper)
+    elif selection.type == Selection.ELEMENT:
+        draw_element_selection(painter, selection, viewportmapper)
 
 
-def draw_element_selectionVersio(painter, selection, viewportmapper):
-    element = selection[0]
+def draw_element_selection(painter, selection, viewportmapper):
     Circle, Rectangle, Arrow, Stroke, Bitmap
-    if isinstance(element, Stroke):
-        points = [p for p, _ in element]
+    if isinstance(selection.element, Stroke):
+        points = [p for p, _ in selection.element]
         rect = viewportmapper.to_viewport_rect(points_rect(points))
-    elif isinstance(element, (Arrow, Rectangle, Circle)):
-        rect = QtCore.QRectF(element.start, element.end)
+    elif isinstance(selection.element, (Arrow, Rectangle, Circle)):
+        rect = QtCore.QRectF(selection.element.start, selection.element.end)
         rect = viewportmapper.to_viewport_rect(rect)
-    elif isinstance(element, Bitmap):
-        rect = QtCore.QRectF(element.rect)
+    elif isinstance(selection.element, Bitmap):
+        rect = QtCore.QRectF(selection.element.rect)
+        rect = viewportmapper.to_viewport_rect(rect)
     else:
         return
     painter.setRenderHint(QtGui.QPainter.Antialiasing, False)

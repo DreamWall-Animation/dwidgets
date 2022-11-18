@@ -15,7 +15,7 @@ class Selection:
         self.mode = 'replace'
 
     def set(self, elements):
-        if isinstance(elements, (Arrow, Rectangle, Circle, Stroke, Bitmap)):
+        if isinstance(elements, (QtCore.QPoint, QtCore.QPointF, Arrow, Rectangle, Circle, Stroke, Bitmap)):
             self.elements = []
             self.element = elements
             return
@@ -66,13 +66,13 @@ class Selection:
         self.sub_elements = []
         self.element = None
 
-    def __len__(self):
-        return len(self.sub_elements)
-
     def __bool__(self):
-        return bool(self.type)
+        return bool(self.sub_elements) or bool(self.element)
 
     __nonzero__ = __bool__
+
+    def __len__(self):
+        return len(self.sub_elements)
 
     def __getitem__(self, i):
         return self.sub_elements[i]
@@ -82,6 +82,8 @@ class Selection:
 
 
 def selection_rect(selection):
+    if selection.type != selection.SUBOBJECTS:
+        return
     points = []
     for element in selection:
         if isinstance(element, (QtCore.QPoint, QtCore.QPointF)):
