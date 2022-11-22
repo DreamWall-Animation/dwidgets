@@ -5,23 +5,14 @@ from dwidgets.retakecanvas.tools.basetool import NavigationTool
 
 
 class ShapeTool(NavigationTool):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.layername = 'Shape'
-        self.shape_cls = Arrow
         self.shape = None
 
     def mousePressEvent(self, event):
-        if self.layerstack.is_locked or self.navigator.space_pressed:
-            return
-        if self.layerstack.current is None:
-            self.model.add_layer(undo=False, name=self.layername)
-        self.selection.clear()
-        self.shape = self.shape_cls(
-            start=self.viewportmapper.to_units_coords(event.pos()),
-            color=self.drawcontext.color,
-            linewidth=self.drawcontext.size)
-        self.layerstack.current.append(self.shape)
+        raise NotImplementedError()
 
     def mouseMoveEvent(self, event):
         if super().mouseMoveEvent(event):
@@ -34,6 +25,7 @@ class ShapeTool(NavigationTool):
             if not self.shape.is_valid:
                 self.layerstack.current.remove(self.shape)
             self.shape = None
+            self.selection.clear()
         else:
             super().mouseReleaseEvent(event)
         return True
@@ -50,29 +42,69 @@ class ShapeTool(NavigationTool):
 
 
 class ArrowTool(ShapeTool):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.layername = 'Arrow'
-        self.shape_cls = Arrow
         self.headsize = 10
         self.tailwidth = 10
 
     def mousePressEvent(self, event):
-        super().mousePressEvent(event)
+        if self.layerstack.is_locked or self.navigator.space_pressed:
+            return
+        if self.layerstack.current is None:
+            self.model.add_layer(undo=False, name=self.layername)
+        self.selection.clear()
+        self.shape = Arrow(
+            start=self.viewportmapper.to_units_coords(event.pos()),
+            color=self.drawcontext.color,
+            linewidth=self.drawcontext.size)
+        self.layerstack.current.append(self.shape)
         if self.shape:
             self.shape.headsize = self.headsize
             self.shape.tailwidth = self.tailwidth
 
 
 class RectangleTool(ShapeTool):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.layername = 'Rectangle'
         self.shape_cls = Rectangle
 
+    def mousePressEvent(self, event):
+        if self.layerstack.is_locked or self.navigator.space_pressed:
+            return
+        if self.layerstack.current is None:
+            self.model.add_layer(undo=False, name=self.layername)
+        self.selection.clear()
+        self.shape = Rectangle(
+            start=self.viewportmapper.to_units_coords(event.pos()),
+            color=self.drawcontext.color,
+            bgcolor=self.drawcontext.bgcolor,
+            bgopacity=self.drawcontext.bgopacity,
+            linewidth=self.drawcontext.size,
+            filled=self.drawcontext.filled)
+        self.layerstack.current.append(self.shape)
+
 
 class CircleTool(ShapeTool):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.layername = 'Circle'
-        self.shape_cls = Circle
+
+    def mousePressEvent(self, event):
+        if self.layerstack.is_locked or self.navigator.space_pressed:
+            return
+        if self.layerstack.current is None:
+            self.model.add_layer(undo=False, name=self.layername)
+        self.selection.clear()
+        self.shape = Circle(
+            start=self.viewportmapper.to_units_coords(event.pos()),
+            color=self.drawcontext.color,
+            bgcolor=self.drawcontext.bgcolor,
+            bgopacity=self.drawcontext.bgopacity,
+            linewidth=self.drawcontext.size,
+            filled=self.drawcontext.filled)
+        self.layerstack.current.append(self.shape)

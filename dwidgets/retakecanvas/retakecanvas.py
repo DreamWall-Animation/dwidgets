@@ -1,4 +1,4 @@
-
+import os
 from functools import partial
 from PySide2 import QtWidgets, QtCore
 from dwidgets.retakecanvas.button import (
@@ -10,9 +10,12 @@ from dwidgets.retakecanvas.layerstackview import LayerStackView
 from dwidgets.retakecanvas.model import RetakeCanvasModel
 from dwidgets.retakecanvas.qtutils import icon, set_shortcut
 from dwidgets.retakecanvas.settings import (
-    GeneralSettings, ArrowSettings, SmoothDrawSettings, ShapeSettings)
+    GeneralSettings, ArrowSettings, FillableShapeSettings, SmoothDrawSettings,
+    ShapeSettings)
 from dwidgets.retakecanvas.selection import Selection
 from dwidgets.retakecanvas.shapes import Bitmap
+from dwidgets.retakecanvas.tools.erasertool import (
+    erase_on_layer, get_point_to_erase)
 
 
 class LayerView(QtWidgets.QWidget):
@@ -46,9 +49,12 @@ class LayerView(QtWidgets.QWidget):
         self.plus.triggered.connect(self.layer_added)
         self.minus = QtWidgets.QAction('➖', self)
         self.minus.triggered.connect(self.remove_current_layer)
+        self.duplicate = QtWidgets.QAction('⧉', self)
+        self.duplicate.triggered.connect(self.duplicate_layer)
         self.toolbar = QtWidgets.QToolBar()
         self.toolbar.addAction(self.plus)
         self.toolbar.addAction(self.minus)
+        self.toolbar.addAction(self.duplicate)
         # StackLayout
         self.tabled = QtWidgets.QAction(icon('table.png'), None, self)
         self.tabled.setCheckable(True)
@@ -130,6 +136,11 @@ class LayerView(QtWidgets.QWidget):
 
     def layer_added(self):
         self.model.add_layer()
+        self.layerstackview.update_size()
+        self.layerstackview.repaint()
+
+    def duplicate_layer(self):
+        self.model.duplicate_layer()
         self.layerstackview.update_size()
         self.layerstackview.repaint()
 
@@ -229,6 +240,10 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.arrow.setCheckable(True)
         self.arrow.triggered.connect(self.set_tool)
         self.arrow.tool = tools.ArrowTool
+        self.text = QtWidgets.QAction(icon('text.png'), '', self)
+        self.text.setCheckable(True)
+        self.text.triggered.connect(self.set_tool)
+        self.text.tool = tools.TextTool
         self.wipes = QtWidgets.QAction(icon('wipes.png'), '', self)
         self.wipes.setCheckable(True)
         self.wipes.setEnabled(False)
@@ -240,6 +255,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         set_shortcut('F', self, self.canvas.reset)
         set_shortcut('CTRL+V', self, self.paste)
         set_shortcut('CTRL+D', self, self.model.selection.clear)
+        set_shortcut('DEL', self, self.do_delete)
         set_shortcut('M', self, self.move_a.trigger)
         set_shortcut('B', self, self.freedraw.trigger)
         set_shortcut('E', self, self.eraser.trigger)
@@ -259,6 +275,7 @@ class RetakeCanvas(QtWidgets.QWidget):
             self.rectangle: tools.RectangleTool(**kwargs),
             self.circle: tools.CircleTool(**kwargs),
             self.arrow: tools.ArrowTool(**kwargs),
+            self.text: tools.TextTool(**kwargs),
             self.wipes: tools.WipesTool(**kwargs)}
 
         self.tools_group = QtWidgets.QActionGroup(self)
@@ -271,16 +288,28 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.tools_group.addAction(self.rectangle)
         self.tools_group.addAction(self.circle)
         self.tools_group.addAction(self.arrow)
+        self.tools_group.addAction(self.text)
         self.tools_group.addAction(self.wipes)
         self.tools_group.setExclusive(True)
 
         self.main_settings = GeneralSettings(self.model)
+        self.fillable_shape_settings = FillableShapeSettings(self.model)
         self.setting_widgets = {
+            self.text: self.fillable_shape_settings,
+            self.rectangle: self.fillable_shape_settings,
+            self.circle: self.fillable_shape_settings,
             self.arrow: ArrowSettings(self.tools[self.arrow]),
             self.smoothdraw: SmoothDrawSettings(self.tools[self.smoothdraw])}
 
+        spacer = QtWidgets.QWidget()
+        spacer.setSizePolicy(*[QtWidgets.QSizePolicy.Expanding] * 2)
+        self.open = QtWidgets.QAction(icon('open.png'), '', self)
+        self.open.triggered.connect(self.call_open)
+
         self.tools_bar = QtWidgets.QToolBar()
         self.tools_bar.addActions(self.tools_group.actions())
+        self.tools_bar.addWidget(spacer)
+        self.tools_bar.addAction(self.open)
 
         settings_layout = QtWidgets.QVBoxLayout()
         default_spacing = settings_layout.spacing()
@@ -290,6 +319,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         settings_layout.addSpacing(default_spacing)
         settings_layout.addWidget(self.setting_widgets[self.arrow])
         settings_layout.addWidget(self.setting_widgets[self.smoothdraw])
+        settings_layout.addWidget(self.fillable_shape_settings)
 
         self.shape_settings_label = ToolNameLabel('Shape Options')
         self.shape_settings = ShapeSettings(self.canvas, self.model)
@@ -326,6 +356,34 @@ class RetakeCanvas(QtWidgets.QWidget):
         layout.addWidget(splitter)
         self.navigation.trigger()
 
+    def do_delete(self):
+        if self.model.layerstack.is_locked:
+            return
+        if self.model.selection.type == Selection.NO:
+            return
+        if self.model.selection.type == Selection.ELEMENT:
+            self.model.layerstack.remove(self.model.selection.element)
+            self.model.selection.clear()
+            self.model.add_undo_state()
+            return
+        layer = self.model.layerstack.current
+        classes = QtCore.QPoint, QtCore.QPointF
+        points = [p for p in self.model.selection if isinstance(p, classes)]
+        points_to_erase = get_point_to_erase(points, layer)
+        erase_on_layer(points_to_erase, layer)
+        self.model.selection.clear()
+        self.model.add_undo_state()
+        self.update_shape_settings_view()
+        self.repaint()
+
+    def call_open(self):
+        paths, result = QtWidgets.QFileDialog.getOpenFileNames(
+            self, 'Select Image', os.path.expanduser('~'),
+            "Images (*.png *.xpm *.jpg *.webp)")
+        if not result:
+            return
+        self.layerview.layerstackview.add_layers_from_paths(paths)
+
     def update_shape_settings_view(self):
         state = self.shape_settings.update()
         self.shape_settings.setVisible(state)
@@ -336,8 +394,8 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.canvas.repaint()
         self.layerview.sync_view()
 
-    def render(self, layerstack=None, baseimage=None):
-        return self.canvas.render(layerstack, baseimage)
+    def render(self, model):
+        return self.canvas.render(model=model)
 
     def undo(self):
         self.model.undo()
@@ -417,6 +475,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.canvas.set_model(model)
         self.main_settings.set_model(model)
         self.shape_settings.set_model(model)
+        self.fillable_shape_settings.set_model(model)
         self.update_shape_settings_view()
         for widget in self.tools.values():
             widget.set_model(model)

@@ -23,7 +23,9 @@ class EraserTool(NavigationTool):
         p2 = self.viewportmapper.to_units_coords(event.pos())
         line = QtCore.QLineF(p1, p2)
         width = (self.drawcontext.size * self.pressure) / 2
-        erase_on_layer(line, width, self.layerstack.current)
+        layer = self.layerstack.current
+        points_to_erase = filter_point_to_erase_from_line(line, width, layer)
+        erase_on_layer(points_to_erase, self.layerstack.current)
         self._mouse_buffer = event.pos()
 
     def mouseReleaseEvent(self, _):
@@ -34,6 +36,9 @@ class EraserTool(NavigationTool):
     def tabletMoveEvent(self, event):
         self.pressure = event.pressure()
         self.mouseMoveEvent(event)
+
+    def window_cursor_visible(self):
+        return False
 
     def draw(self, painter):
         if self.navigator.space_pressed:
@@ -46,7 +51,7 @@ class EraserTool(NavigationTool):
         painter.drawEllipse(pos, radius / 2, radius / 2)
 
 
-def split_data(stroke, points):
+def split_stroke_data(stroke, points):
     all_points = [p for p, _ in stroke]
     indexes = [
         i for (i, p1), p2 in itertools.product(enumerate(all_points), points)
@@ -72,19 +77,26 @@ def split_data(stroke, points):
     return [group for group in groups if len(group) > 1]
 
 
-def erase_on_layer(line, width, layer):
+def filter_point_to_erase_from_line(line, width, layer):
+    result = [
+        (s, i, [p for p, _ in s if distance_qline_qpoint(line, p) < width])
+        for i, s in enumerate(layer) if isinstance(s, Stroke)]
+    return [data for data in result if data[2]]
+
+
+def get_point_to_erase(points, layer):
+    result = [
+        (s, i, [p for p, _ in s if p in points])
+        for i, s in enumerate(layer) if isinstance(s, Stroke)]
+    return [data for data in result if data[2]]
+
+
+def erase_on_layer(points_to_erase, layer):
     stroke_actions = []
-    for i, stroke in enumerate(layer):
-        if not isinstance(stroke, Stroke):
-            continue
-        points = [
-            p for p, _ in stroke
-            if distance_qline_qpoint(line, p) < width]
-        if not points:
-            continue
-        data = split_data(stroke, points)
+    for stroke, index, points in points_to_erase:
+        data = split_stroke_data(stroke, points)
         if not data:
-            stroke_actions.append(('delete', i, stroke))
+            stroke_actions.append(('delete', index, stroke))
             continue
         stroke.points = data[0]
         if len(data) > 1:
@@ -93,9 +105,11 @@ def erase_on_layer(line, width, layer):
                     continue
                 stroke = stroke.copy()
                 stroke.points = group
-                stroke_actions.append(('new', i, stroke))
+                stroke_actions.append(('new', index, stroke))
+
     if not stroke_actions:
         return
+
     for action, i, stroke in reversed(stroke_actions):
         if action == 'new':
             layer.insert(i, stroke)

@@ -1,15 +1,13 @@
 import os
-import sys
-import time
-import math
 import time
 from PySide2 import QtCore, QtWidgets, QtGui
+from dwidgets.retakecanvas.geometry import (
+    combined_rect, get_global_rect, get_images_rects, get_shape_rect)
 from dwidgets.retakecanvas.model import RetakeCanvasModel
-from dwidgets.retakecanvas.qtutils import points_rect
 from dwidgets.retakecanvas.tools import NavigationTool
 from dwidgets.retakecanvas.selection import selection_rect, Selection
 from dwidgets.retakecanvas.shapes import (
-    Circle, Rectangle, Arrow, Stroke, Bitmap)
+    Circle, Rectangle, Arrow, Stroke, Bitmap, Text)
 from dwidgets.retakecanvas.viewport import ViewportMapper
 
 
@@ -57,7 +55,9 @@ class Canvas(QtWidgets.QWidget):
         paths = [
             os.path.expandvars(url.path())
             for url in event.mimeData().urls()]
-        images = [QtGui.QImage(p) for p in paths]
+        if not paths:
+            self.add_image_layer(paths)
+        images = [QtGui.QImage(p.strip('/\\')) for p in paths]
         images = [image for image in images if not image.isNull()]
         for image in images:
             self.model.append_image(image)
@@ -190,27 +190,44 @@ class Canvas(QtWidgets.QWidget):
             QtWidgets.QApplication.restoreOverrideCursor()
             QtWidgets.QApplication.setOverrideCursor(override)
 
-    def render(self, layerstack=None, baseimage=None):
-        layerstack = layerstack or self.model.layerstack
-        baseimage = baseimage or self.model.baseimage
+    def render(self, painter=None, model=None, viewportmapper=None):
+        model = model or self.model
+        viewportmapper = viewportmapper or ViewportMapper()
+        baseimage = model.baseimage
         if not baseimage:
             return
 
-        image = QtGui.QImage(baseimage)
-        rect = QtCore.QRect(0, 0, image.width(), image.height())
-        painter = QtGui.QPainter(image)
-        if layerstack.wash_opacity:
-            painter.setPen(QtCore.Qt.transparent)
-            color = QtGui.QColor(layerstack.wash_color)
-            color.setAlpha(layerstack.wash_opacity)
-            painter.setBrush(color)
-            painter.drawRect(rect)
+        size = model.baseimage.size()
+        baseimage_rect = QtCore.QRectF(0, 0, size.width(), size.height())
+        rects = get_images_rects(
+            model.baseimage,
+            model.imagestack,
+            layout=model.imagestack_layout) + [baseimage_rect]
 
-        for layer, _, _, visible, opacity in layerstack:
+        if not painter:
+            layer_rects = [
+                get_shape_rect(shape, viewportmapper)
+                for layer in model.layerstack.layers for shape in layer]
+            output_rect = combined_rect(rects + layer_rects)
+            viewportmapper.origin = output_rect.topLeft()
+            w, h = int(output_rect.width()), int(output_rect.height())
+            image = QtGui.QImage(w, h, QtGui.QImage.Format_RGB32)
+            painter = QtGui.QPainter(image)
+        else:
+            image = None
+        self.draw_images(painter, rects, viewportmapper)
+
+        if model.wash_opacity:
+            painter.setPen(QtCore.Qt.transparent)
+            color = QtGui.QColor(model.wash_color)
+            color.setAlpha(model.wash_opacity)
+            painter.setBrush(color)
+            painter.drawRect(viewportmapper.to_viewport_rect(baseimage_rect))
+
+        for layer, _, _, visible, opacity in model.layerstack:
             if not visible:
                 continue
-            draw_layer(painter, layer, opacity, ViewportMapper())
-
+            draw_layer(painter, layer, opacity, viewportmapper)
         return image
 
     def paintEvent(self, _):
@@ -223,43 +240,7 @@ class Canvas(QtWidgets.QWidget):
             painter.setPen(QtCore.Qt.transparent)
             painter.drawRect(self.rect())
             painter.setBrush(QtCore.Qt.darkBlue)
-
-            size = self.model.baseimage.size()
-            rect = QtCore.QRectF(0, 0, size.width(), size.height())
-            rects = get_images_rects(
-                self.model.baseimage,
-                self.model.imagestack,
-                layout=self.model.imagestack_layout) + [rect]
-
-            if self.model.imagestack_layout != RetakeCanvasModel.STACKED:
-                images = self.model.imagestack + [self.model.baseimage]
-                for image, rect in zip(images, rects):
-                    rect = self.model.viewportmapper.to_viewport_rect(rect)
-                    painter.drawImage(rect, image)
-            else:
-                images = list(reversed(self.model.imagestack))
-                images += [self.model.baseimage]
-                wipes = self.model.imagestack_wipes[:]
-                wipes.append(self.model.baseimage_wipes)
-                for image, rect, wipe in zip(images, rects, wipes):
-                    mode = QtCore.Qt.KeepAspectRatio
-                    image = image.scaled(rect.size().toSize(), mode)
-                    image = image.copy(wipe)
-                    wipe = self.model.viewportmapper.to_viewport_rect(wipe)
-                    painter.drawImage(wipe, image)
-
-            if self.model.wash_opacity:
-                painter.setPen(QtCore.Qt.transparent)
-                color = QtGui.QColor(self.model.wash_color)
-                color.setAlpha(self.model.wash_opacity)
-                painter.setBrush(color)
-                painter.drawRect(rect)
-
-            for layer, _, _, visible, opacity in self.model.layerstack:
-                if not visible:
-                    continue
-                draw_layer(painter, layer, opacity, self.model.viewportmapper)
-
+            self.render(painter, self.model, self.model.viewportmapper)
             draw_selection(
                 painter,
                 self.model.selection,
@@ -268,64 +249,23 @@ class Canvas(QtWidgets.QWidget):
         finally:
             painter.end()
 
-
-def get_images_rects(baseimage, stackimages, layout=0):
-    """
-    layout: RetakeCanvasModel.GRID | STACKED | HORIZONTAL | VERTICAL
-    """
-    images = [baseimage] + stackimages
-    rects = [
-        QtCore.QRectF(0, 0, image.size().width(), image.size().height())
-        for image in images]
-    last_rect = None
-    if layout == RetakeCanvasModel.HORIZONTAL:
-        for rect in rects:
-            if not last_rect:
-                last_rect = rect
-                continue
-            rect.moveTopLeft(last_rect.topRight())
-            last_rect = rect
-    elif layout == RetakeCanvasModel.VERTICAL:
-        for rect in rects:
-            if not last_rect:
-                last_rect = rect
-                continue
-            rect.moveTopLeft(last_rect.bottomLeft())
-            last_rect = rect
-    elif layout == RetakeCanvasModel.GRID:
-        set_grid_layout(rects)
-    return rects[1:]
-
-
-def get_global_rect(baseimage, stackimages, layout=0):
-    image_rect = QtCore.QRectF(0, 0, baseimage.width(), baseimage.height())
-    rects = get_images_rects(baseimage, stackimages, layout)
-    rects.append(image_rect)
-    left, top = sys.maxsize, sys.maxsize
-    right, bottom = -sys.maxsize, -sys.maxsize
-    for rect in rects:
-        left = min((rect.left(), left))
-        top = min((rect.top(), top))
-        right = max((rect.right(), right))
-        bottom = max((rect.bottom(), bottom))
-    return QtCore.QRectF(left, top, right - left, bottom - top)
-
-
-def set_grid_layout(viewport_rects):
-    colcount = math.ceil(math.sqrt(len(viewport_rects)))
-    width = max(rect.width() for rect in viewport_rects)
-    height = max(rect.height() for rect in viewport_rects)
-    top, left = viewport_rects[0].top(), viewport_rects[0].left()
-    for i, rect in enumerate(viewport_rects):
-        if not i:
-            left += width
-            continue
-        if i % colcount == 0:
-            left = viewport_rects[0].left()
-            top += height
-        rect.moveTopLeft(QtCore.QPointF(left, top))
-        left += width
-    return
+    def draw_images(self, painter, rects, viewportmapper):
+        if self.model.imagestack_layout != RetakeCanvasModel.STACKED:
+            images = self.model.imagestack + [self.model.baseimage]
+            for image, rect in zip(images, rects):
+                rect = viewportmapper.to_viewport_rect(rect)
+                painter.drawImage(rect, image)
+        else:
+            images = list(reversed(self.model.imagestack))
+            images += [self.model.baseimage]
+            wipes = self.model.imagestack_wipes[:]
+            wipes.append(self.model.baseimage_wipes)
+            for image, rect, wipe in zip(images, rects, wipes):
+                mode = QtCore.Qt.KeepAspectRatio
+                image = image.scaled(rect.size().toSize(), mode)
+                image = image.copy(wipe)
+                wipe = viewportmapper.to_viewport_rect(wipe)
+                painter.drawImage(wipe, image)
 
 
 def draw_layer(painter, layer, opacity, viewportmapper):
@@ -341,7 +281,43 @@ def draw_layer(painter, layer, opacity, viewportmapper):
             draw_shape(painter, element, painter.drawRect, viewportmapper)
         elif isinstance(element, Bitmap):
             draw_bitmap(painter, element, viewportmapper)
+        elif isinstance(element, Text):
+            draw_text(painter, element, viewportmapper)
     painter.setOpacity(1)
+
+
+def _get_text_alignment_flags(alignment):
+    return [
+        (QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop),
+        (QtCore.Qt.AlignRight | QtCore.Qt.AlignTop),
+        (QtCore.Qt.AlignHCenter | QtCore.Qt.AlignTop),
+        (QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter),
+        (QtCore.Qt.AlignCenter),
+        (QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter),
+        (QtCore.Qt.AlignLeft | QtCore.Qt.AlignBottom),
+        (QtCore.Qt.AlignHCenter | QtCore.Qt.AlignBottom),
+        (QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom)][alignment]
+
+
+def draw_text(painter, text, viewportmapper):
+    if not text.is_valid:
+        return
+    rect = get_shape_rect(text, viewportmapper)
+    if text.filled:
+        color = text.bgcolor if text.filled else QtCore.Qt.transparent
+        color = QtGui.QColor(color)
+        if text.bgopacity != 255:
+            color.setAlpha(text.bgopacity)
+        painter.setPen(QtCore.Qt.transparent)
+        painter.setBrush(color)
+        painter.drawRect(rect)
+    painter.setBrush(QtCore.Qt.transparent)
+    painter.setPen(QtGui.QColor(text.color))
+    font = QtGui.QFont()
+    font.setPixelSize(int(viewportmapper.to_viewport(text.text_size)) * 10)
+    painter.setFont(font)
+    alignment = _get_text_alignment_flags(text.alignment)
+    painter.drawText(rect, alignment, text.text)
 
 
 def draw_bitmap(painter, bitmap, viewportmapper):
@@ -354,13 +330,19 @@ def draw_bitmap(painter, bitmap, viewportmapper):
 def draw_shape(painter, shape, drawer, viewportmapper):
     if not shape.is_valid:
         return
+
     color = QtGui.QColor(shape.color)
     pen = QtGui.QPen(color)
     pen.setCapStyle(QtCore.Qt.RoundCap)
     pen.setJoinStyle(QtCore.Qt.MiterJoin)
     pen.setWidthF(viewportmapper.to_viewport(shape.linewidth))
     painter.setPen(pen)
-    painter.setBrush(QtCore.Qt.transparent)
+    state = shape.filled
+    color = shape.bgcolor if state else QtCore.Qt.transparent
+    color = QtGui.QColor(color)
+    if shape.bgopacity != 255:
+        color.setAlpha(shape.bgopacity)
+    painter.setBrush(color)
     rect = QtCore.QRectF(
         viewportmapper.to_viewport_coords(shape.start),
         viewportmapper.to_viewport_coords(shape.end))
@@ -426,17 +408,8 @@ def draw_selection(painter, selection, viewportmapper):
 
 
 def draw_element_selection(painter, selection, viewportmapper):
-    Circle, Rectangle, Arrow, Stroke, Bitmap
-    if isinstance(selection.element, Stroke):
-        points = [p for p, _ in selection.element]
-        rect = viewportmapper.to_viewport_rect(points_rect(points))
-    elif isinstance(selection.element, (Arrow, Rectangle, Circle)):
-        rect = QtCore.QRectF(selection.element.start, selection.element.end)
-        rect = viewportmapper.to_viewport_rect(rect)
-    elif isinstance(selection.element, Bitmap):
-        rect = QtCore.QRectF(selection.element.rect)
-        rect = viewportmapper.to_viewport_rect(rect)
-    else:
+    rect = get_shape_rect(selection.element, viewportmapper)
+    if rect is None:
         return
     painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
     painter.setPen(QtCore.Qt.yellow)

@@ -1,8 +1,9 @@
 from PySide2 import QtCore, QtGui
+from dwidgets.retakecanvas.geometry import get_shape_rect
 from dwidgets.retakecanvas.tools.basetool import NavigationTool
 from dwidgets.retakecanvas.selection import selection_rect, Selection
 from dwidgets.retakecanvas.shapes import (
-    Arrow, Rectangle, Circle, Bitmap, Stroke)
+    Arrow, Rectangle, Circle, Bitmap, Stroke, Text)
 
 
 class MoveTool(NavigationTool):
@@ -75,14 +76,32 @@ class MoveTool(NavigationTool):
             return QtCore.Qt.SizeAllCursor
 
     def draw(self, painter):
-        if not isinstance(self.element_hover, (QtCore.QPoint, QtCore.QPointF)):
+        if self.element_hover is None:
             return
-        color = QtGui.QColor(QtCore.Qt.yellow)
-        color.setAlpha(75)
-        painter.setBrush(color)
-        painter.setPen(QtCore.Qt.NoPen)
-        point = self.viewportmapper.to_viewport_coords(self.element_hover)
-        painter.drawEllipse(point.x() - 20, point.y() - 20, 40, 40)
+        if self.selection.element == self.element_hover:
+            return
+        if isinstance(self.element_hover, (QtCore.QPoint, QtCore.QPointF)):
+            color = QtGui.QColor(QtCore.Qt.yellow)
+            color.setAlpha(75)
+            painter.setBrush(color)
+            painter.setPen(QtCore.Qt.NoPen)
+            point = self.viewportmapper.to_viewport_coords(self.element_hover)
+            painter.drawEllipse(point.x() - 20, point.y() - 20, 40, 40)
+            return
+        rect = get_shape_rect(self.element_hover, self.viewportmapper)
+        old_opacity = painter.opacity()
+        painter.setOpacity(.5)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
+        painter.setBrush(QtCore.Qt.transparent)
+        painter.setPen(QtCore.Qt.black)
+        painter.drawRect(rect)
+        pen = QtGui.QPen(QtCore.Qt.white)
+        pen.setWidth(1)
+        pen.setStyle(QtCore.Qt.DashLine)
+        painter.setPen(pen)
+        painter.drawRect(rect)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        painter.setOpacity(old_opacity)
 
 
 def shift_element(element, offset):
@@ -91,7 +110,7 @@ def shift_element(element, offset):
     elif isinstance(element, Stroke):
         for point, _ in element.points:
             point -= offset
-    elif isinstance(element, (Arrow, Rectangle, Circle)):
+    elif isinstance(element, (Arrow, Rectangle, Circle, Text)):
         element.start -= offset
         element.end -= offset
     elif isinstance(element, Bitmap):
@@ -166,7 +185,7 @@ def layer_elements_in_rect(layer, rect):
     for element in layer:
         if isinstance(element, Stroke):
             result.extend(p for p, _ in element if rect.contains(p))
-        elif isinstance(element, (Arrow, Rectangle, Circle)):
+        elif isinstance(element, (Arrow, Rectangle, Circle, Text)):
             if rect.contains(element.start):
                 result.append(element.start)
             if rect.contains(element.end):

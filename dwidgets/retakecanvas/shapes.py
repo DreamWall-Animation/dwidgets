@@ -2,6 +2,46 @@ from copy import deepcopy
 from PySide2 import QtGui, QtCore
 
 
+class Text:
+    TOP_LEFT = 0
+    TOP_RIGHT = 1
+    TOP_CENTER = 2
+    CENTER_LEFT = 3
+    CENTER = 4
+    CENTER_RIGHT = 5
+    BOTTOM_LEFT = 6
+    BOTTOM_CENTER = 7
+    BOTTOM_RIGHT = 8
+
+    def __init__(
+            self, start, text, color, bgcolor, bgopacity, text_size, filled):
+        self.text = text
+        self.start = start
+        self.end = None
+        self.color = color
+        self.filled = filled
+        self.bgcolor = bgcolor
+        self.bgopacity = bgopacity
+        self.text_size = text_size
+        self.alignment = self.TOP_LEFT
+
+    def handle(self, point):
+        self.end = point
+
+    @property
+    def is_valid(self):
+        return self.end is not None
+
+    def copy(self):
+        text = Text(
+            self.start, self.text, self.color,
+            self.bgcolor, self.bgopacity,
+            self.text_size, self.filled)
+        text.end = self.end
+        text.alignment = self.alignment
+        return text
+
+
 class Bitmap:
     def __init__(self, image, rect):
         self.image = image
@@ -15,10 +55,13 @@ class Bitmap:
 
 
 class Rectangle:
-    def __init__(self, start, color, linewidth):
+    def __init__(self, start, color, bgcolor, bgopacity, linewidth, filled):
         self.start = start
         self.end = None
         self.color = color
+        self.filled = filled
+        self.bgcolor = bgcolor
+        self.bgopacity = bgopacity
         self.linewidth = linewidth
 
     def handle(self, point):
@@ -29,7 +72,9 @@ class Rectangle:
         return self.end is not None
 
     def copy(self):
-        rect = Rectangle(self.start, self.color, self.linewidth)
+        rect = Rectangle(
+            self.start, self.color, self.bgcolor, self.bgopacity,
+            self.linewidth, self.filled)
         rect.end = self.end
         return rect
 
@@ -37,12 +82,15 @@ class Rectangle:
 class Circle(Rectangle):
 
     def copy(self):
-        rect = Circle(self.start, self.color, self.linewidth)
+        rect = Circle(
+            self.start, self.color, self.bgcolor, self.bgopacity,
+            self.linewidth, self.filled)
         rect.end = self.end
         return rect
 
 
 class Arrow:
+
     def __init__(self, start, color, linewidth):
         self.start = start
         self.end = None

@@ -1,6 +1,6 @@
 from PySide2 import QtGui, QtCore
 
-from dwidgets.retakecanvas.layerstack import LayerStack
+from dwidgets.retakecanvas.layerstack import LayerStack, unique_layer_name
 from dwidgets.retakecanvas.qtutils import COLORS
 from dwidgets.retakecanvas.selection import Selection
 from dwidgets.retakecanvas.navigator import Navigator
@@ -13,6 +13,9 @@ UNDOLIMIT = 50
 class DrawContext:
     def __init__(self):
         self.color = COLORS[0]
+        self.bgcolor = COLORS[0]
+        self.bgopacity = 255
+        self.filled = False
         self.size = 10
 
 
@@ -54,6 +57,12 @@ class RetakeCanvasModel:
     def delete_image(self, index):
         del self.imagestack[index]
         del self.imagestack_wipes[index]
+        self.add_undo_state()
+
+    def duplicate_layer(self):
+        if not self.layerstack.current:
+            return
+        self.layerstack.duplicate_current()
         self.add_undo_state()
 
     def set_baseimage(self, image):
@@ -143,15 +152,3 @@ class RetakeCanvasModel:
             'wash_color': '#FFFFFF',
             'wash_opacity': 0,
         }
-
-
-def unique_layer_name(name, names):
-    if name not in names:
-        return name
-
-    template = '{name} ({n})'
-    i = 1
-    while template.format(name=name, n=i) in names:
-        i += 1
-        continue
-    return template.format(name=name, n=i)

@@ -1,10 +1,10 @@
 
 from PySide2 import QtCore
 from dwidgets.retakecanvas.shapes import (
-    Stroke, Arrow, Rectangle, Circle, Bitmap)
+    Stroke, Arrow, Rectangle, Circle, Bitmap, Text)
 from dwidgets.retakecanvas.mathutils import distance_qline_qpoint
 
-UNDOLIMIT = 50
+UNDOLIMIT = 30
 
 
 class LayerStack:
@@ -37,6 +37,18 @@ class LayerStack:
         self.names.append(name)
         self.visibilities.append(True)
         self.current_index = len(self.layers) - 1
+
+    def duplicate_current(self):
+        if not self.current:
+            return
+        index = self.current_index
+        new_layer = [shape.copy() for shape in self.current]
+        self.layers.insert(index, new_layer)
+        self.opacities.insert(index, self.opacities[index])
+        name = unique_layer_name(self.names[index], self.names)
+        self.names.insert(index, name)
+        self.visibilities.insert(index, self.visibilities[index])
+        self.locks.insert(index, self.locks[index])
 
     def set_current(self, index):
         self.current_index = index
@@ -90,11 +102,10 @@ class LayerStack:
             return
         for layer in reversed(self.layers):
             for element in reversed(layer):
-                if isinstance(element, (Arrow, Rectangle)):
-                    if is_point_hover_element(element.start, point):
-                        return element.start
-                    elif is_point_hover_element(element.end, point):
-                        return element.end
+                if isinstance(element, (Arrow, Rectangle, Text)):
+                    for p in (element.start, element.end):
+                        if is_point_hover_element(p, point):
+                            return p
                 if is_point_hover_element(element, point):
                     return element
 
@@ -119,7 +130,24 @@ def is_point_hover_element(element, point):
     elif isinstance(element, Arrow):
         distance = distance_qline_qpoint(element.line, point)
         return distance <= element.tailwidth
-    elif isinstance(element, (Rectangle, Circle)):
+    elif isinstance(element, Text):
+        rect = QtCore.QRectF(element.start, element.end)
+        return rect.contains(point)
+    elif isinstance(element, Rectangle):
+        rect = QtCore.QRectF(element.start, element.end)
+        if element.filled:
+            return rect.contains(point)
+        lines = (
+            (rect.topLeft(), rect.bottomLeft()),
+            (rect.topLeft(), rect.topRight()),
+            (rect.topRight(), rect.bottomRight()),
+            (rect.bottomLeft(), rect.bottomRight()))
+        for line in lines:
+            line = QtCore.QLineF(*line)
+            if distance_qline_qpoint(line, point) <= element.linewidth:
+                return True
+        return False
+    elif isinstance(element, Circle):
         # TODO
         return False
     elif isinstance(element, Bitmap):
@@ -139,3 +167,15 @@ def is_point_hover_stroke(stroke, point):
         if distance <= size:
             return True
     return False
+
+
+def unique_layer_name(name, names):
+    if name not in names:
+        return name
+
+    template = '{name} ({n})'
+    i = 1
+    while template.format(name=name, n=i) in names:
+        i += 1
+        continue
+    return template.format(name=name, n=i)

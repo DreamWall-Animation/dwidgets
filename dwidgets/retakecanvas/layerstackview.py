@@ -1,6 +1,9 @@
 
+import os
 from dwidgets.retakecanvas.dialog import OpacityDialog, RenameDialog
-from dwidgets.retakecanvas.qtutils import pixmap, grow_rect
+from dwidgets.retakecanvas.geometry import grow_rect
+from dwidgets.retakecanvas.qtutils import pixmap
+from dwidgets.retakecanvas.shapes import Bitmap
 from PySide2 import QtCore, QtGui, QtWidgets
 
 
@@ -24,6 +27,31 @@ class LayerStackView(QtWidgets.QWidget):
         self.handle_index = None
         self.buffer_state = None
         self.dragging = False
+
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            return event.accept()
+
+    def dropEvent(self, event):
+        paths = [
+            os.path.expandvars(url.path())
+            for url in event.mimeData().urls()]
+        if paths:
+            self.add_layers_from_paths(paths)
+
+    def add_layers_from_paths(self, paths):
+        images = [QtGui.QImage(p.strip('/\\')) for p in paths]
+        images = [image for image in images if not image.isNull()]
+        for image in images:
+            size = image.size()
+            rect = QtCore.QRectF(0, 0, size.width(), size.height())
+            self.model.add_layer(undo=False, name="Imported image")
+            self.model.add_shape(Bitmap(image, rect))
+        self.model.add_undo_state()
+        self.update_size()
+        self.repaint()
 
     def set_model(self, model):
         self.model = model

@@ -1,7 +1,7 @@
 from PySide2 import QtCore
-from dwidgets.retakecanvas.qtutils import points_rect
+from dwidgets.retakecanvas.geometry import points_rect
 from dwidgets.retakecanvas.shapes import (
-    Arrow, Rectangle, Circle, Stroke, Bitmap)
+    Arrow, Rectangle, Circle, Stroke, Bitmap, Text)
 
 
 class Selection:
@@ -15,22 +15,21 @@ class Selection:
         self.mode = 'replace'
 
     def set(self, elements):
-        if isinstance(elements, (QtCore.QPoint, QtCore.QPointF, Arrow, Rectangle, Circle, Stroke, Bitmap)):
+        types = (
+            QtCore.QPoint, QtCore.QPointF,
+            Arrow, Rectangle, Circle, Stroke, Bitmap, Text)
+
+        if isinstance(elements, types):
             self.elements = []
             self.element = elements
             return
+
         if self.mode == 'add':
-            if elements is None:
-                return
-            return self.add(elements)
+            return None if elements is None else self.add(elements)
         elif self.mode == 'replace':
-            if elements is None:
-                return self.clear()
-            return self.replace(elements)
+            return self.clear() if elements is None else self.replace(elements)
         elif self.mode == 'invert':
-            if elements is None:
-                return
-            return self.invert(elements)
+            return None if elements is None else self.invert(elements)
         elif self.mode == 'remove':
             if elements is None:
                 return
@@ -42,9 +41,7 @@ class Selection:
     def type(self):
         if self.element is not None:
             return self.ELEMENT
-        if self.sub_elements:
-            return self.SUBOBJECTS
-        return self.NO
+        return self.SUBOBJECTS if self.sub_elements else self.NO
 
     def replace(self, elements):
         self.sub_elements = elements
@@ -90,7 +87,7 @@ def selection_rect(selection):
             points.append(element)
         elif isinstance(element, Stroke):
             points.extend(point for point, _ in element)
-        elif isinstance(element, (Arrow, Rectangle, Circle)):
+        elif isinstance(element, (Arrow, Rectangle, Circle, Text)):
             points.extend((element.start, element.end))
         # elif isinstance(element, Bitmap):
         # TODO:
