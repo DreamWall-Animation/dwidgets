@@ -48,6 +48,10 @@ class RetakeCanvasModel:
         self.redostack = []
         self.add_undo_state()
 
+    @property
+    def texts(self):
+        return self.layerstack.texts
+
     def append_image(self, image):
         self.imagestack.append(image)
         width, height = image.size().width(), image.size().height()

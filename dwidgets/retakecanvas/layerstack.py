@@ -23,6 +23,12 @@ class LayerStack:
         self._current_index = None
 
     @property
+    def texts(self):
+        return [
+            shape.text for layer in self.layers for shape in layer
+            if isinstance(shape, Text)]
+
+    @property
     def current_index(self):
         return self._current_index
 

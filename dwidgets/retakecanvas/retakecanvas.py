@@ -437,6 +437,10 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.canvas.reset()
         super().showEvent(event)
 
+    def reset(self):
+        self.canvas.reset()
+        self.repaint()
+
     def keyPressEvent(self, event):
         self.canvas.keyPressEvent(event)
 
