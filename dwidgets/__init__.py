@@ -1,5 +1,7 @@
 
 from dwidgets.calendar import CalendarDialog
+from dwidgets.choicemenu import ChoiceMenu, ChoiceScrollMenu
+from dwidgets.popupchecklist import PopupCheckList
 from dwidgets.retakecanvas.retakecanvas import RetakeCanvas
 from dwidgets.retakecanvas.model import RetakeCanvasModel
 from dwidgets.tag import TagView
