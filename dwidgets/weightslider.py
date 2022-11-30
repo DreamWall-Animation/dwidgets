@@ -195,6 +195,15 @@ class WeightSlider(QtWidgets.QWidget):
         self.update_geometries()
         self.repaint()
 
+    def set_value(self, index, color=None, text=None, data=None):
+        if color:
+            self._colors[index] = color
+        if text:
+            self._texts[index] = text
+        if data:
+            self._data[index] = data
+        self.repaint()
+
     @_skip_if_not_editable
     def append_weight(self, color=None, text=None, data=None, comment=None):
         try:
@@ -228,6 +237,17 @@ class WeightSlider(QtWidgets.QWidget):
         self.update_geometries()
         self.repaint()
 
+    def index_at(self, point, global_coordinates=True):
+        if global_coordinates:
+            point = self.mapFromGlobal(point)
+        if self._orientation == QtCore.Qt.Vertical:
+            rects = [
+                QtCore.QRectF(0, r.top(), self.rect().width(), r.height())
+                for r in self._rects]
+        else:
+            rects = self._rects
+        return point_hover_rects(rects, point)
+
     def update_geometries(self):
         if self.display_texts and not self.horizontal:
             column_width = self.column_width or self.width() / 4
@@ -250,10 +270,13 @@ class WeightSlider(QtWidgets.QWidget):
         if not self.editable:
             return
         data = base64.b64decode(event.mimeData().data('data').toBase64())
-        self.append_weight(
-            color=event.mimeData().colorData(),
-            text=event.mimeData().text(),
-            data=json.loads(data) if data else None)
+        try:
+            self.append_weight(
+                color=event.mimeData().colorData(),
+                text=event.mimeData().text(),
+                data=json.loads(data) if data else None)
+        except ValueError:
+            QtWidgets.QMessageBox.critical(self, 'Error', 'Too many items set')
         return event.accept()
 
     def mousePressEvent(self, event):
@@ -306,7 +329,7 @@ class WeightSlider(QtWidgets.QWidget):
         elif event.button() == QtCore.Qt.RightButton and self.context_menu:
             if not self.weights:
                 return
-            self.context_menu.exec(self.mapToGlobal(event.pos()))
+            self.context_menu.exec_(self.mapToGlobal(event.pos()))
         elif event.button() == QtCore.Qt.MiddleButton:
             if self._drag_index is not None:
                 self.remove_weight(self._drag_index)
@@ -319,13 +342,15 @@ class WeightSlider(QtWidgets.QWidget):
             mime.setColorData(self._colors[self._drag_index])
             mime.setText(self._texts[self._drag_index])
             data = self.data[self._drag_index]
-            mime.setData('data', QtCore.QByteArray(json.dumps(data)))
-            mime.setData('index', QtCore.QByteArray(bytes(self._drag_index)))
+            data = json.dumps(data).encode()
+            mime.setData('data', QtCore.QByteArray(data))
+            data = json.dumps(self._drag_index).encode()
+            mime.setData('index', QtCore.QByteArray(data))
             mime.setParent(self)
             drag = QtGui.QDrag(self)
             drag.setMimeData(mime)
-            drag.setHotSpot(event.pos().toPoint() - self.rect().topLeft())
-            drag.exec(QtCore.Qt.CopyAction)
+            drag.setHotSpot(event.pos() - self.rect().topLeft())
+            drag.exec_(QtCore.Qt.CopyAction)
             self._drag_index = None
             return
 
@@ -389,8 +414,8 @@ class WeightSlider(QtWidgets.QWidget):
 
     def execute_comment_dialog(self, index, position):
         dialog = CommentDialog(self.comments[index])
-        dialog.move(self.mapToGlobal(position.toPoint()))
-        if dialog.exec() != QtWidgets.QDialog.Accepted:
+        dialog.move(self.mapToGlobal(position))
+        if dialog.exec_() != QtWidgets.QDialog.Accepted:
             return
         self._comments[index] = dialog.comment
 
@@ -400,7 +425,7 @@ class CommentDialog(QtWidgets.QDialog):
         super().__init__(parent)
         self.setWindowTitle('Set comment')
         self.text = QtWidgets.QPlainTextEdit()
-        self.text.setPlainText(comment)
+        self.text.setPlainText(comment or '')
         self.ok = QtWidgets.QPushButton('Ok')
         self.ok.released.connect(self.accept)
         self.cancel = QtWidgets.QPushButton('Cancel')

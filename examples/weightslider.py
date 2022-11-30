@@ -1,5 +1,5 @@
 import os, sys, random
-from PySide6 import QtWidgets, QtCore
+from PySide2 import QtWidgets, QtCore
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 
