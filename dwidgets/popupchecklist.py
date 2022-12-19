@@ -16,6 +16,12 @@ def get_multiple_selection_text(selected_labels, max_labels):
     return text
 
 
+class ListWidgetForCheckboxes(QtWidgets.QListWidget):
+    """
+    Only here to be able to style it differently.
+    """
+
+
 class PopupCheckList(QtWidgets.QMenu):
     checked_items_changed = QtCore.Signal(list)
 
@@ -25,7 +31,7 @@ class PopupCheckList(QtWidgets.QMenu):
         self.checkboxes = []
         self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
 
-        self.list_widget = QtWidgets.QListWidget(
+        self.list_widget = ListWidgetForCheckboxes(
             minimumHeight=200, minimumWidth=200)
         self.list_widget.itemClicked.connect(self._toggle_checkbox)
         clear_btn = QtWidgets.QPushButton(
