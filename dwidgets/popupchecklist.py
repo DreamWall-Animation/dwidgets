@@ -96,6 +96,13 @@ class PopupCheckList(QtWidgets.QMenu):
         with self._single_signal():
             [cb.setChecked(not cb.isChecked()) for cb in self.checkboxes]
 
+    def set_checked_items(self, labels):
+        self.uncheck_all()
+        with self._single_signal():
+            for checkbox in self.checkboxes:
+                if checkbox.text() in labels:
+                    checkbox.setChecked(True)
+
 
 class PopupCheckListButton(QtWidgets.QPushButton):
     checked_items_changed = QtCore.Signal(list)
