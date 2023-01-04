@@ -4,16 +4,21 @@ DEFAULT_PADDING = 5
 DEFAULT_CELL_PADDING = 0
 DEFAULT_SPACING = 3
 DEFAULT_BG_COLOR = '#556699'
-DEFAULT_CLICKED_CROSS_COLOR = '#CCDDEE'
 DEFAULT_CROSS_COLOR = '#7788AA'
 DEFAULT_HOVER_CROSS_COLOR = '#99CCDD'
-DEFAULT_TEXT_STYLE = 'font-size:15px; color: #dddddd; font-style:bold; justify-content: center'
+DEFAULT_TEXT_STYLE = (
+    'font-size:15px; color: #dddddd; font-style:bold; justify-content: center')
 
 
 class TagView(QtWidgets.QWidget):
     edited = QtCore.Signal()
 
-    def __init__(self):
+    def __init__(
+            self,
+            bg_color=None,
+            cross_color=None,
+            hover_cross_color=None,
+            spacing=None):
         super().__init__()
         self.setMouseTracking(True)
         self._tags = []
@@ -22,11 +27,11 @@ class TagView(QtWidgets.QWidget):
         self._textstyle = DEFAULT_TEXT_STYLE
         self._padding = DEFAULT_PADDING
         self._cell_padding = DEFAULT_CELL_PADDING
-        self._spacing = DEFAULT_SPACING
-        self._background_color = DEFAULT_BG_COLOR
-        self._cross_color = DEFAULT_CROSS_COLOR
-        self._hover_cross_color = DEFAULT_HOVER_CROSS_COLOR
-        self._clicked_cross_color = DEFAULT_CLICKED_CROSS_COLOR
+        self._spacing = spacing or DEFAULT_SPACING
+        self._bg_color = bg_color or DEFAULT_BG_COLOR
+        self._cross_color = cross_color or DEFAULT_CROSS_COLOR
+        self._hover_cross_color = (
+            hover_cross_color or DEFAULT_HOVER_CROSS_COLOR)
         self.left_clicked = False
 
     @property
@@ -66,12 +71,12 @@ class TagView(QtWidgets.QWidget):
         self.tags = self.tags
 
     @property
-    def background_color(self):
-        return self._background_color
+    def bg_color(self):
+        return self._bg_color
 
-    @background_color.setter
-    def background_color(self, color):
-        self._background_color = color
+    @bg_color.setter
+    def bg_color(self, color):
+        self._bg_color = color
         self.repaint()
 
     @property
@@ -90,15 +95,6 @@ class TagView(QtWidgets.QWidget):
     @hover_cross_color.setter
     def hover_cross_color(self, color):
         self._hover_cross_color = color
-        self.repaint()
-
-    @property
-    def clicked_cross_color(self):
-        return self._clicked_cross_color
-
-    @clicked_cross_color.setter
-    def clicked_cross_color(self, color):
-        self._clicked_cross_color = color
         self.repaint()
 
     def pop(self, index):
@@ -161,15 +157,14 @@ class TagView(QtWidgets.QWidget):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         cursor = self.mapFromGlobal(QtGui.QCursor.pos())
-        for t, (itemrect, textrect, crossrect) in zip(self._texts, self._items):
+        iterator = zip(self._texts, self._items)
+        for t, (itemrect, textrect, crossrect) in iterator:
             painter.setPen(QtCore.Qt.transparent)
             roundness = itemrect.height() / 2
-            painter.setBrush(QtGui.QColor(self._background_color))
+            painter.setBrush(QtGui.QColor(self._bg_color))
             painter.drawRoundedRect(itemrect, roundness, roundness)
             hover = crossrect.contains(cursor)
-            if hover and self.left_clicked:
-                color = self._clicked_cross_color
-            elif hover:
+            if hover:
                 color = self._hover_cross_color
             else:
                 color = self._cross_color
@@ -179,7 +174,7 @@ class TagView(QtWidgets.QWidget):
             x = textrect.center().x() - (t.size().width() / 2) + roundness * .7
             y = textrect.center().y() - (t.size().height() / 2)
             painter.drawStaticText(x, y, t)
-            pen = QtGui.QPen(QtGui.QColor(self._background_color))
+            pen = QtGui.QPen(QtGui.QColor(self._bg_color))
             crossrect = mult_rect(crossrect, 0.5)
             pen.setWidthF(crossrect.height() * 0.3)
             painter.setPen(pen)
@@ -216,7 +211,10 @@ def get_items(rect, statictexts, spacing, cell_padding):
             size.height())
 
         cross = QtCore.QRect(
-            item.right() - item.height(), item.top(), item.height(), item.height())
+            item.right() - item.height(),
+            item.top(),
+            item.height(),
+            item.height())
 
         item_text_cross_rects.append([item, text, cross])
         x += width + spacing + (2 * cell_padding)
@@ -247,7 +245,11 @@ def mult_rect(rect, value):
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
     win = TagView()
-    win.tags = 'peanuts', 'bourito', 'parapat', 'esmeraldaisthebestwomanever', 'olivier', 'parapa', 'theipper'
-    win.style = 'font-size:15px; color: #dddddd; font-style:bold; justify-content: center'
+    win.tags = (
+        'peanuts', 'bourito', 'parapat', 'esmeraldaisthebestwomanever',
+        'olivier', 'parapa', 'theipper')
+    win.style = (
+        'font-size:15px; color: #dddddd; font-style:bold;'
+        'justify-content: center')
     win.show()
     app.exec_()
