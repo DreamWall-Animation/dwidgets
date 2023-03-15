@@ -26,6 +26,8 @@ class RangeSlider(QtWidgets.QWidget):
         self.bar.high_changed.connect(self.set_high)
 
         self.range = self.bar.range
+        self.set_range = self.bar.set_range
+        self.set_full_range = self.bar.set_full_range
         self.is_min = self.bar.is_min
         self.is_max = self.bar.is_max
         self.is_default = self.bar.is_default
