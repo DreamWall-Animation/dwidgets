@@ -6,6 +6,8 @@ DEFAULT_MAX = 100
 
 
 class RangeSlider(QtWidgets.QWidget):
+    range_changed = QtCore.Signal(int, int)
+
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.low = QtWidgets.QLineEdit(str(DEFAULT_MIN))
@@ -18,6 +20,8 @@ class RangeSlider(QtWidgets.QWidget):
         self.high.setValidator(QtGui.QIntValidator())
         self.high.setFixedWidth(50)
         self.bar = RangeSliderBar()
+        self.low_changed = self.bar.low_changed
+        self.high_changed = self.bar.high_changed
         self.bar.low_changed.connect(self.set_low)
         self.bar.high_changed.connect(self.set_high)
 
@@ -42,6 +46,7 @@ class RangeSlider(QtWidgets.QWidget):
     def range_edited(self, *_):
         minimum = int(self.low.text())
         maximum = int(self.high.text())
+        self.range_changed(minimum, maximum)
         self.bar.low = minimum
         self.bar.high = maximum
         self.bar.repaint()
