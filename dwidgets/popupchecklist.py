@@ -6,13 +6,16 @@ from PySide2.QtCore import Qt
 EMPTY_LABEL = '-'
 
 
-def get_multiple_selection_text(selected_labels, max_labels):
+def get_multiple_selection_text(
+        selected_labels, max_labels, included_title=None):
     if not selected_labels or len(selected_labels) == max_labels:
-        text = EMPTY_LABEL
+        text = f'{included_title} (off)' if included_title else EMPTY_LABEL
     elif len(selected_labels) == 1:
         text = selected_labels[0]
+        text = f'{included_title}: {text}' if included_title else text
     else:
         text = f'({len(selected_labels)}/{max_labels})'
+        text = f'{included_title}: {text}' if included_title else text
     return text
 
 
@@ -107,9 +110,10 @@ class PopupCheckList(QtWidgets.QMenu):
 class PopupCheckListButton(QtWidgets.QPushButton):
     checked_items_changed = QtCore.Signal(list)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, included_title=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.included_title = included_title
         self.menu = PopupCheckList(self)
         self.clicked.connect(self.popup)
         self.menu.checked_items_changed.connect(self._set_text)
@@ -118,6 +122,7 @@ class PopupCheckListButton(QtWidgets.QPushButton):
 
         self.set_items = self.menu.set_items
         self.checked_items_labels = self.menu.checked_items_labels
+        self._set_text()
 
     def popup(self):
         position = self.mapToGlobal(self.rect().bottomLeft())
@@ -125,7 +130,8 @@ class PopupCheckListButton(QtWidgets.QPushButton):
 
     def _set_text(self):
         labels = self.menu.checked_items_labels()
-        text = get_multiple_selection_text(labels, len(self.menu.checkboxes))
+        text = get_multiple_selection_text(
+            labels, len(self.menu.checkboxes), self.included_title)
         self.setText(text)
 
     def mousePressEvent(self, event):
