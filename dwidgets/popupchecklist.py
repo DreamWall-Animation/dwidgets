@@ -128,10 +128,6 @@ class PopupCheckListButton(QtWidgets.QPushButton):
         position = self.mapToGlobal(self.rect().bottomLeft())
         self.menu.popup(position)
 
-    def set_checked_items(self, labels):
-        self.menu.set_checked_items(labels)
-        self._set_text()  # FIXME: not working ?
-
     def _set_text(self):
         labels = self.menu.checked_items_labels()
         text = get_multiple_selection_text(
