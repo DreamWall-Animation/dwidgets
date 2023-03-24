@@ -55,10 +55,10 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
     def filter_choices(self):
         search_text = self.search_edit.text().lower()
         self.items_list.clear()
-        for choice, display in zip(self.choices, self.labels):
-            if search_text not in choice or search_text not in display:
+        for choice, label in zip(self.choices, self.labels):
+            if search_text not in choice or search_text not in label:
                 continue
-            item = QtWidgets.QListWidgetItem(display)
+            item = QtWidgets.QListWidgetItem(label)
             item.setData(Qt.UserRole, choice)
             self.items_list.addItem(item)
 
