@@ -56,7 +56,7 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
         search_text = self.search_edit.text().lower()
         self.items_list.clear()
         for choice, label in zip(self.choices, self.labels):
-            if search_text not in choice or search_text not in label:
+            if search_text not in choice and search_text not in label.lower():
                 continue
             item = QtWidgets.QListWidgetItem(label)
             item.setData(Qt.UserRole, choice)
