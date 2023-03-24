@@ -10,12 +10,13 @@ class ChoiceMenu(QtWidgets.QMenu):
         return
     choice = dialog.choice
     """
-    def __init__(self, choices, parent=None):
+    def __init__(self, choices, labels=None, parent=None):
         super().__init__(parent)
         self.choice = None
+        labels = labels or choices
 
-        for label in choices:
-            self.addAction(label, partial(self.action_clicked, label))
+        for label, choice in zip(labels, choices):
+            self.addAction(label, partial(self.action_clicked, choice))
 
     def action_clicked(self, choice):
         self.choice = choice
@@ -28,11 +29,11 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
         return
     choice = dialog.choice
     """
-    def __init__(self, choices, displays=None, parent=None):
+    def __init__(self, choices, labels=None, parent=None):
         super().__init__(parent)
 
         self.choices = choices
-        self.displays = displays or choices
+        self.labels = labels or choices
         self.choice = None
 
         self.search_edit = QtWidgets.QLineEdit()
@@ -54,7 +55,7 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
     def filter_choices(self):
         search_text = self.search_edit.text().lower()
         self.items_list.clear()
-        for choice, display in zip(self.choices, self.displays):
+        for choice, display in zip(self.choices, self.labels):
             if search_text not in choice or search_text not in display:
                 continue
             item = QtWidgets.QListWidgetItem(display)
