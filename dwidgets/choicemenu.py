@@ -1,5 +1,6 @@
 from functools import partial
 from PySide2 import QtWidgets
+from PySide2.QtCore import Qt
 
 
 class ChoiceMenu(QtWidgets.QMenu):
@@ -27,10 +28,11 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
         return
     choice = dialog.choice
     """
-    def __init__(self, choices, parent=None):
+    def __init__(self, choices, displays=None, parent=None):
         super().__init__(parent)
 
         self.choices = choices
+        self.displays = displays or choices
         self.choice = None
 
         self.search_edit = QtWidgets.QLineEdit()
@@ -51,11 +53,14 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
 
     def filter_choices(self):
         search_text = self.search_edit.text().lower()
-        choices = [c for c in self.choices if search_text in c.lower()]
         self.items_list.clear()
-        for label in choices:
-            self.items_list.addItem(label)
+        for choice, display in zip(self.choices, self.displays):
+            if search_text not in choice or search_text not in display:
+                continue
+            item = QtWidgets.QListWidgetItem(display)
+            item.setData(Qt.UserRole, choice)
+            self.items_list.addItem(item)
 
     def item_clicked(self, item):
-        self.choice = item.text()
+        self.choice = item.data(Qt.UserRole)
         self.close()
