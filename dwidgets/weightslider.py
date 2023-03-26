@@ -9,6 +9,7 @@ DEFAULT_GRADUATION = 20
 BALLON_BACKGROUND_COLOR = 'yellow'
 BALLON_FILLED_BORDER_COLOR = 'black'
 BALLON_EMPTY_BORDER_COLOR = 'white'
+EMPTY_BACKGROUND_COLOR = None
 BORDER_COLOR = 'darkorange'
 GRADUATION_COLOR = 'white'
 BUILTIN_COLORS = [
@@ -124,6 +125,7 @@ class WeightSlider(QtWidgets.QWidget):
         self.ballon_background_color = BALLON_BACKGROUND_COLOR
         self.ballon_filled_border_color = BALLON_FILLED_BORDER_COLOR
         self.ballon_empty_border_color = BALLON_EMPTY_BORDER_COLOR
+        self.empty_background_color = EMPTY_BACKGROUND_COLOR
         self.column_width = None
         self.context_menu = None
         self.display_borders = False
@@ -405,7 +407,8 @@ class WeightSlider(QtWidgets.QWidget):
                 self.rect(),
                 self.padding,
                 self.display_borders,
-                self.border_color)
+                self.border_color,
+                self.empty_background_color)
         painter.end()
 
     def resizeEvent(self, event):
@@ -507,11 +510,17 @@ def handle_to_rect(line, width):
     return rect
 
 
-def draw_empty_slider(painter, rect, padding, draw_borders, border_color):
-    brush = QtWidgets.QApplication.palette().dark()
+def draw_empty_slider(
+        painter, rect, padding, draw_borders, border_color,
+        background_color=None):
+    if background_color is None:
+        brush = QtWidgets.QApplication.palette().dark()
+        painter.setBrush(brush)
+    else:
+        painter.setBrush(QtGui.QColor(background_color))
 
     bgrect = build_rect_with_padding(rect, padding)
-    painter.setBrush(brush)
+    painter.setPen(QtCore.Qt.NoPen)
     painter.drawRoundedRect(bgrect, 8, 8)
     if not draw_borders:
         return
