@@ -10,6 +10,7 @@ class RangeSlider(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
+        self.decimal = 0
         self.low = QtWidgets.QLineEdit(str(DEFAULT_MIN))
         self.low.textEdited.connect(self.range_edited)
         self.low.setValidator(QtGui.QIntValidator())
@@ -44,6 +45,7 @@ class RangeSlider(QtWidgets.QWidget):
         self.set_high(high)
 
     def set_decimal(self, decimal):
+        self.decimal = decimal
         v = QtGui.QDoubleValidator() if decimal else QtGui.QIntValidator()
         self.low.setValidator(v)
         self.high.setValidator(v)
@@ -51,15 +53,26 @@ class RangeSlider(QtWidgets.QWidget):
 
     def set_low(self, value):
         self.low.setText(str(value))
+        self.range_set()
 
     def set_high(self, value):
         self.high.setText(str(value))
+        self.range_set()
+
+    def range_set(self, *_):
+        minimum = self.low.text()
+        maximum = self.high.text()
+        if not all((minimum, maximum)):
+            return
+        print(minimum, maximum)
+        cls = float if self.decimal else int
+        self.range_changed.emit(cls(float(minimum)), cls(float(maximum)))
 
     def range_edited(self, *_):
         cls = float if self.decimal else int
-        minimum = cls(self.low.text())
-        maximum = cls(self.high.text())
-        self.range_changed(minimum, maximum)
+        minimum = cls(float(self.low.text()))
+        maximum = cls(float(self.high.text()))
+        self.range_changed.emit(minimum, maximum)
         self.bar.low = minimum
         self.bar.high = maximum
         self.bar.repaint()
@@ -134,7 +147,9 @@ class RangeSliderBar(QtWidgets.QWidget):
 
     @property
     def range(self):
-        return self.low, self.high
+        return (
+            None if self.is_min() else self.low,
+            None if self.is_max() else self.high)
 
     def set_decimal(self, decimal):
         self.decimal = decimal
