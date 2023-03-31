@@ -42,7 +42,7 @@ class TiltedDates(QtWidgets.QWidget):
         self.repaint()
 
     def sizeHint(self):
-        QtCore.QSize(600, 600)
+        return QtCore.QSize(600, 600)
 
     def paintEvent(self, _):
         painter = QtGui.QPainter(self)
