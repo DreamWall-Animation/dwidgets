@@ -9,9 +9,11 @@ DEFAULT_CROSS_BACKGROUND_COLOR = QtCore.Qt.black
 DEFAULT_CROSS_TEXT_COLOR = QtCore.Qt.white
 DEFAULT_ITEM_SIZE = 60, 60
 DEFAULT_ITEM_SPACING = 13
+BORDER_WIDTH = 3
 DELETER_RADIUS = 15
 TEXT_HEIGHT_SQUARE = 15
 MARGINS = 10, 10, 10, 10
+MINIMUM_HEIGHT = 35
 
 
 def _coordinate_builder(size, spacing, width):
@@ -27,7 +29,7 @@ def _coordinate_builder(size, spacing, width):
         yield left, top
 
 
-class DropFileArea(QtWidgets.QWidget):
+class DropFilesArea(QtWidgets.QWidget):
     def __init__(
             self,
             background_color=None,
@@ -51,23 +53,23 @@ class DropFileArea(QtWidgets.QWidget):
         self.text_color = text_color or DEFAULT_TEXT_COLOR
         self.item_size = item_size or DEFAULT_ITEM_SIZE
         self.item_spacing = item_spacing or DEFAULT_ITEM_SPACING
-        self.filenames = []
+        self.filepaths = []
         self.setAcceptDrops(True)
         self.hovered_index = None
         self.setMinimumSize(
             MARGINS[0] + MARGINS[2] + self.item_size[0] + self.item_spacing,
-            MARGINS[1] + MARGINS[3] + self.item_size[1])
+            MINIMUM_HEIGHT)
 
     def sizeHint(self):
         return QtCore.QSize(
             MARGINS[0] + MARGINS[2] +
             (3 * (self.item_size[0] + self.item_spacing)),
-            MARGINS[1] + MARGINS[3] + self.item_size[1])
+            MINIMUM_HEIGHT)
 
     def mouseMoveEvent(self, event):
         coordinates = _coordinate_builder(
             self.item_size, self.item_spacing, self.width())
-        for i, filename in enumerate(self.filenames):
+        for i, filename in enumerate(self.filepaths):
             top, left = next(coordinates)
             rect = QtCore.QRect(top, left, *self.item_size)
             if rect.contains(event.pos()):
@@ -83,7 +85,7 @@ class DropFileArea(QtWidgets.QWidget):
         if event.button() == QtCore.Qt.LeftButton:
             if self.hovered_index is None:
                 return
-            del self.filenames[self.hovered_index]
+            del self.filepaths[self.hovered_index]
             self.repaint()
 
     def dragEnterEvent(self, event):
@@ -100,10 +102,14 @@ class DropFileArea(QtWidgets.QWidget):
             event.accept()
 
     def dropEvent(self, event):
-        self.filenames.extend([
+        self.filepaths.extend([
             url.toLocalFile() for url in event.mimeData().urls()
             if not self.supported_extensions or
-            url.toLocalFile().endwith(tuple(self.supported_extensions))])
+            url.toLocalFile().endswith(tuple(self.supported_extensions))])
+        self.repaint()
+
+    def clear(self):
+        self.filepaths = []
         self.repaint()
 
     def set_colors(
@@ -120,29 +126,34 @@ class DropFileArea(QtWidgets.QWidget):
     def paintEvent(self, _):
         painter = QtGui.QPainter(self)
         painter.setBrush(QtGui.QColor(self.background_color))
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
         pen = QtGui.QPen(QtGui.QColor(self.border_color))
-        pen.setWidth(5)
+        pen.setWidth(BORDER_WIDTH)
         pen.setStyle(QtCore.Qt.DashLine)
         painter.setPen(pen)
-        painter.drawRoundedRect(self.rect(), 20, 20)
-        if not self.filenames:
+        border_rect = QtCore.QRectF(
+            self.rect().left() + (BORDER_WIDTH / 2),
+            self.rect().top() + (BORDER_WIDTH / 2),
+            self.rect().width() - BORDER_WIDTH,
+            self.rect().height() - BORDER_WIDTH)
+        painter.drawRoundedRect(border_rect, 20, 20)
+        if not self.filepaths:
             painter.setPen(QtGui.QColor(self.text_color))
             painter.setBrush(QtCore.Qt.NoBrush)
             font = QtGui.QFont()
-            font.setBold(True)
-            font.setPixelSize(20)
+            font.setPixelSize(15)
             painter.setFont(font)
             text = 'Drop files here'
             painter.drawText(self.rect(), QtCore.Qt.AlignCenter, text)
             painter.end()
             w = MARGINS[0] + MARGINS[2] + self.item_size[0] + self.item_spacing
-            self.setMinimumSize(w, MARGINS[1] + MARGINS[3] + self.item_size[1])
+            self.setMinimumSize(w, MINIMUM_HEIGHT)
             return
 
         coordinates = _coordinate_builder(
             self.item_size, self.item_spacing, self.width())
 
-        for i, filename in enumerate(self.filenames):
+        for i, filename in enumerate(self.filepaths):
             left, top = next(coordinates)
             rect = QtCore.QRectF(left, top, *self.item_size)
             info = QtCore.QFileInfo(filename)
@@ -202,7 +213,7 @@ def filename_rect(rect):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    w = DropFileArea(
+    w = DropFilesArea(
         border_color='#555555',
         background_color='#333333',
         text_color='#CCCCCC')
