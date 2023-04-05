@@ -10,13 +10,18 @@ class ChoiceMenu(QtWidgets.QMenu):
         return
     choice = dialog.choice
     """
-    def __init__(self, choices, labels=None, parent=None):
+    def __init__(self, choices, icons=None, labels=None, parent=None):
         super().__init__(parent)
         self.choice = None
         labels = labels or choices
-
-        for label, choice in zip(labels, choices):
-            self.addAction(label, partial(self.action_clicked, choice))
+        icons = icons or ([None] * len(choices))
+        for label, choice, icon in zip(labels, choices, icons):
+            action = QtWidgets.QAction(self)
+            action.setText(label)
+            action.triggered.connect(partial(self.action_clicked, choice))
+            if icon:
+                action.setIcon(icon)
+            self.addAction(action)
 
     def action_clicked(self, choice):
         self.choice = choice
