@@ -33,6 +33,7 @@ class TagView(QtWidgets.QWidget):
         self._hover_cross_color = (
             hover_cross_color or DEFAULT_HOVER_CROSS_COLOR)
         self.left_clicked = False
+        self.constrained_height = False
 
     @property
     def padding(self):
@@ -133,7 +134,11 @@ class TagView(QtWidgets.QWidget):
             self.cell_padding)
         self.repaint()
         if self._items:
-            self.setMinimumHeight(self._items[-1][0].bottom() + self.padding)
+            height = self._items[-1][0].bottom() + self.padding
+            if self.constrained_height:
+                self.setFixedHeight(height)
+            else:
+                self.setMinimumHeight(height)
 
     def resizeEvent(self, _):
         self.recompute_items()
