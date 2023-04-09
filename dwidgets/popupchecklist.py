@@ -62,12 +62,14 @@ class PopupCheckList(QtWidgets.QMenu):
         cb = self.list_widget.itemWidget(item)
         cb.setChecked(not cb.isChecked())
 
-    def set_items(self, labels, checked=None):
+    def set_items(self, labels, data=None, checked=None):
+        data = data or labels
         checked = checked if checked is not None else []
         self.checkboxes.clear()
         self.list_widget.clear()
-        for label in labels:
+        for label, d in zip(labels, data):
             cb = QtWidgets.QCheckBox(label, checked=label in checked)
+            cb.data = d
             cb.stateChanged.connect(self._send_signal)
             host_item = QtWidgets.QListWidgetItem()
             self.list_widget.addItem(host_item)
@@ -85,7 +87,7 @@ class PopupCheckList(QtWidgets.QMenu):
         self._send_signal()
 
     def checked_items_labels(self):
-        return [cb.text() for cb in self.checkboxes if cb.isChecked()]
+        return [cb.data for cb in self.checkboxes if cb.isChecked()]
 
     def all_checked(self):
         return all(cb.isChecked() for cb in self.checkboxes)
