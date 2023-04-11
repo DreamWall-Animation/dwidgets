@@ -64,7 +64,6 @@ class RangeSlider(QtWidgets.QWidget):
         maximum = self.high.text()
         if not all((minimum, maximum)):
             return
-        print(minimum, maximum)
         cls = float if self.decimal else int
         self.range_changed.emit(cls(float(minimum)), cls(float(maximum)))
 
