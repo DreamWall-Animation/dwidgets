@@ -68,7 +68,8 @@ class PopupCheckList(QtWidgets.QMenu):
         self.checkboxes.clear()
         self.list_widget.clear()
         for label, d in zip(labels, data):
-            cb = QtWidgets.QCheckBox(label, checked=label in checked)
+            state = label in checked or d in checked
+            cb = QtWidgets.QCheckBox(label, checked=state)
             cb.data = d
             cb.stateChanged.connect(self._send_signal)
             host_item = QtWidgets.QListWidgetItem()
@@ -108,7 +109,7 @@ class PopupCheckList(QtWidgets.QMenu):
         self.uncheck_all()
         self.blockSignals(True)
         for checkbox in self.checkboxes:
-            if checkbox.text() in labels:
+            if checkbox.text() in labels or checkbox.data in labels:
                 checkbox.setChecked(True)
         self.blockSignals(False)
         if emit_signal:
