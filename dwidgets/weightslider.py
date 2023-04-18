@@ -129,6 +129,7 @@ class WeightSlider(QtWidgets.QWidget):
         self.column_width = None
         self.context_menu = None
         self.display_borders = False
+        self.display_gaduations = True
         self.display_texts = False
         self.display_ballons = False
         self.editable = True
@@ -380,6 +381,7 @@ class WeightSlider(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         if self._rects:
             texts = self._texts if self.display_texts else [''] * len(self._colors)
+            gp = self._graduation_points if self.display_gaduations else None
             draw_slider(
                 painter=painter,
                 rect=self.rect(),
@@ -389,7 +391,7 @@ class WeightSlider(QtWidgets.QWidget):
                 padding=self.padding,
                 draw_borders=self.display_borders,
                 border_color=self.border_color,
-                graduations=self._graduation_points,
+                graduations=gp,
                 graduation_color=self.graduation_color,
                 orientation=self._orientation)
             if self.ballons_visible():
