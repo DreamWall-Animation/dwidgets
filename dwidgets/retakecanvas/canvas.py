@@ -195,6 +195,7 @@ class Canvas(QtWidgets.QWidget):
         viewportmapper = viewportmapper or ViewportMapper()
         baseimage = model.baseimage
         if not baseimage:
+            self.draw_empty(painter)
             return
 
         size = model.baseimage.size()
@@ -248,6 +249,16 @@ class Canvas(QtWidgets.QWidget):
             self.tool.draw(painter)
         finally:
             painter.end()
+
+    def draw_empty(self, painter):
+        brush = QtGui.QBrush(QtCore.Qt.grey)
+        brush.setStyle(QtCore.Qt.BDiagPattern)
+        painter.setBursh(brush)
+        pen = QtGui.QPen(QtCore.Qt.black)
+        pen.setWidth(3)
+        painter.setPen(pen)
+        painter.drawRect(self.rect())
+        print(self.rect())
 
     def draw_images(self, painter, rects, viewportmapper):
         if self.model.imagestack_layout != RetakeCanvasModel.STACKED:

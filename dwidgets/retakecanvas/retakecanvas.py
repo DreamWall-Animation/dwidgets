@@ -343,17 +343,16 @@ class RetakeCanvas(QtWidgets.QWidget):
         right_layout.setSpacing(0)
         right_layout.addWidget(self.tools_bar)
         right_layout.addWidget(self.canvas)
-        right_layout.addStretch(1)
 
-        splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
-        splitter.addWidget(self.left_scroll)
-        splitter.addWidget(self.right_widget)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 1)
+        self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        self.splitter.addWidget(self.left_scroll)
+        self.splitter.addWidget(self.right_widget)
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 1)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(splitter)
+        layout.addWidget(self.splitter)
         self.navigation.trigger()
 
     def do_delete(self):
