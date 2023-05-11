@@ -1,6 +1,5 @@
-
-
-from PySide2 import QtWidgets, QtCore
+import datetime
+from PySide2 import QtWidgets, QtCore, QtGui
 
 
 class CalendarDialog(QtWidgets.QDialog):
@@ -30,3 +29,15 @@ class CalendarDialog(QtWidgets.QDialog):
     @property
     def date(self):
         return self.calendar.selectedDate()
+
+
+def date_prompt(parent=None, start_date=None, position=None):
+    if not start_date:
+        start_date = datetime.date.today()
+    dialog = CalendarDialog(date=start_date, parent=parent)
+    if not position:
+        position = QtGui.QCursor().pos()
+    dialog.move(position)
+    if not dialog.exec():
+        return
+    return dialog.date.toPython()
