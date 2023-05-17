@@ -1,6 +1,6 @@
-
-from dwidgets.calendar import CalendarDialog
+from dwidgets.calendar import CalendarDialog, date_prompt
 from dwidgets.choicemenu import ChoiceMenu, ChoiceScrollMenu
+from dwidgets.confirm import confirm_dialog
 from dwidgets.dropfilesarea import DropFilesArea
 from dwidgets.popupchecklist import PopupCheckList, PopupCheckListButton
 from dwidgets.retakecanvas.retakecanvas import RetakeCanvas
