@@ -326,7 +326,7 @@ def draw_text(painter, text, viewportmapper):
     painter.setBrush(QtCore.Qt.transparent)
     painter.setPen(QtGui.QColor(text.color))
     font = QtGui.QFont()
-    font.setPixelSize(int(viewportmapper.to_viewport(text.text_size)) * 10)
+    font.setPointSizeF(viewportmapper.to_viewport(text.text_size) * 10)
     painter.setFont(font)
     alignment = _get_text_alignment_flags(text.alignment)
     option = QtGui.QTextOption()
