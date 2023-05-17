@@ -65,7 +65,7 @@ class RetakeCanvasModel:
         self.add_undo_state()
 
     def duplicate_layer(self):
-        if not self.layerstack.current:
+        if self.layerstack.current is None:
             return
         self.layerstack.duplicate_current()
         self.add_undo_state()

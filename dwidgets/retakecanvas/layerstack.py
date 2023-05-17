@@ -45,7 +45,7 @@ class LayerStack:
         self.current_index = len(self.layers) - 1
 
     def duplicate_current(self):
-        if not self.current:
+        if self.current is None:
             return
         index = self.current_index
         new_layer = [shape.copy() for shape in self.current]
