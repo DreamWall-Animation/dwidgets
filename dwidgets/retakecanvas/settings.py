@@ -59,7 +59,7 @@ class ShapeSettings(QtWidgets.QWidget):
         self.stroke_width.sliderReleased.connect(self.model.add_undo_state)
         self.stroke_width_row = _Row('Stroke Size: ', size, self.stroke_width)
         self.text_size = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self.text_size.setMinimum(8)
+        self.text_size.setMinimum(2)
         self.text_size.setMaximum(30)
         self.text_size.valueChanged.connect(self.text_size_changed)
         self.text_size.sliderReleased.connect(self.model.add_undo_state)
@@ -153,6 +153,7 @@ class ShapeSettings(QtWidgets.QWidget):
         if not isinstance(self.element, Text):
             return
         self.element.text_size = value
+        self.model.drawcontext.text_size = value
         self.canvas.repaint()
 
     def change_alignment(self, index):

@@ -216,7 +216,7 @@ class Canvas(QtWidgets.QWidget):
             painter = QtGui.QPainter(image)
         else:
             image = None
-        self.draw_images(painter, rects, viewportmapper)
+        self.draw_images(painter, rects, viewportmapper, model=model)
 
         if model.wash_opacity:
             painter.setPen(QtCore.Qt.transparent)
@@ -258,19 +258,19 @@ class Canvas(QtWidgets.QWidget):
         pen.setWidth(3)
         painter.setPen(pen)
         painter.drawRect(self.rect())
-        print(self.rect())
 
-    def draw_images(self, painter, rects, viewportmapper):
-        if self.model.imagestack_layout != RetakeCanvasModel.STACKED:
-            images = self.model.imagestack + [self.model.baseimage]
+    def draw_images(self, painter, rects, viewportmapper, model=None):
+        model = model or self.model
+        if model.imagestack_layout != RetakeCanvasModel.STACKED:
+            images = self.model.imagestack + [model.baseimage]
             for image, rect in zip(images, rects):
                 rect = viewportmapper.to_viewport_rect(rect)
                 painter.drawImage(rect, image)
         else:
-            images = list(reversed(self.model.imagestack))
-            images += [self.model.baseimage]
-            wipes = self.model.imagestack_wipes[:]
-            wipes.append(self.model.baseimage_wipes)
+            images = list(reversed(model.imagestack))
+            images += [model.baseimage]
+            wipes = model.imagestack_wipes[:]
+            wipes.append(model.baseimage_wipes)
             for image, rect, wipe in zip(images, rects, wipes):
                 mode = QtCore.Qt.KeepAspectRatio
                 image = image.scaled(rect.size().toSize(), mode)
@@ -322,13 +322,17 @@ def draw_text(painter, text, viewportmapper):
         painter.setPen(QtCore.Qt.transparent)
         painter.setBrush(color)
         painter.drawRect(rect)
+
     painter.setBrush(QtCore.Qt.transparent)
     painter.setPen(QtGui.QColor(text.color))
     font = QtGui.QFont()
     font.setPixelSize(int(viewportmapper.to_viewport(text.text_size)) * 10)
     painter.setFont(font)
     alignment = _get_text_alignment_flags(text.alignment)
-    painter.drawText(rect, alignment, text.text)
+    option = QtGui.QTextOption()
+    option.setWrapMode(QtGui.QTextOption.WrapAtWordBoundaryOrAnywhere)
+    option.setAlignment(alignment)
+    painter.drawText(rect, text.text, option)
 
 
 def draw_bitmap(painter, bitmap, viewportmapper):

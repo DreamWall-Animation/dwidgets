@@ -17,6 +17,7 @@ class DrawContext:
         self.bgopacity = 255
         self.filled = False
         self.size = 10
+        self.text_size = 5
 
 
 class RetakeCanvasModel:

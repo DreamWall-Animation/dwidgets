@@ -203,6 +203,10 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.canvas.selectionChanged.connect(self.update_shape_settings_view)
         self.canvas.isUpdated.connect(self.layerview.sync_view)
 
+        self.undo_action = QtWidgets.QAction(icon('undo.png'), '', self)
+        self.undo_action.triggered.connect(self.undo)
+        self.redo_action = QtWidgets.QAction(icon('redo.png'), '', self)
+        self.redo_action.triggered.connect(self.redo)
         self.navigation = QtWidgets.QAction(icon('hand.png'), '', self)
         self.navigation.setCheckable(True)
         self.navigation.setChecked(True)
@@ -249,6 +253,8 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.wipes.setEnabled(False)
         self.wipes.triggered.connect(self.set_tool)
         self.wipes.tool = tools.ArrowTool
+        self.open = QtWidgets.QAction(icon('open.png'), '', self)
+        self.open.triggered.connect(self.call_open)
 
         set_shortcut('CTRL+Z', self, self.undo)
         set_shortcut('CTRL+Y', self, self.redo)
@@ -303,10 +309,11 @@ class RetakeCanvas(QtWidgets.QWidget):
 
         spacer = QtWidgets.QWidget()
         spacer.setSizePolicy(*[QtWidgets.QSizePolicy.Expanding] * 2)
-        self.open = QtWidgets.QAction(icon('open.png'), '', self)
-        self.open.triggered.connect(self.call_open)
 
         self.tools_bar = QtWidgets.QToolBar()
+        self.tools_bar.addAction(self.undo_action)
+        self.tools_bar.addAction(self.redo_action)
+        self.tools_bar.addSeparator()
         self.tools_bar.addActions(self.tools_group.actions())
         self.tools_bar.addWidget(spacer)
         self.tools_bar.addAction(self.open)

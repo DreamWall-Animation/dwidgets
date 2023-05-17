@@ -26,7 +26,7 @@ class TextTool(ShapeTool):
             bgcolor=self.drawcontext.bgcolor,
             bgopacity=self.drawcontext.bgopacity,
             filled=self.drawcontext.filled,
-            text_size=self.drawcontext.size)
+            text_size=self.drawcontext.text_size)
         self.layerstack.current.append(self.shape)
 
     def mouseReleaseEvent(self, event):
