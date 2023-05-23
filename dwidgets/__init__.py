@@ -1,3 +1,4 @@
+from dwidgets.azimuth import AzimuthWidget
 from dwidgets.calendar import CalendarDialog, date_prompt
 from dwidgets.choicemenu import ChoiceMenu, ChoiceScrollMenu
 from dwidgets.confirm import confirm_dialog
