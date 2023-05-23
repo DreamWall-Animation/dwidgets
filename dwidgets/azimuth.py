@@ -45,18 +45,19 @@ class AzimuthWidget(QtWidgets.QWidget):
         self.repaint()
 
     def paintEvent(self, _):
+        rect = QtCore.QRect(
+            self.rect().left() + 3, self.rect().top() + 6,
+            self.rect().width() - 6, self.rect().height() - 6)
+        rect.setWidth(rect.width() * 2)
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setBrush(QtGui.QColor(self.colors['background']))
+        painter.setPen(QtCore.Qt.NoPen)
         pencolor = QtGui.QColor(self.colors['border'])
         pen = QtGui.QPen(pencolor)
         pen.setStyle(QtCore.Qt.DotLine)
         pen.setWidth(5)
         painter.setPen(pen)
-        rect = QtCore.QRect(
-            self.rect().left() + 3, self.rect().top() + 6,
-            self.rect().width() - 6, self.rect().height() - 6)
-        rect.setWidth(rect.width() * 2)
         painter.drawPie(rect, 90 * 16, 180 * 16)
         painter.setBrush(QtCore.Qt.NoBrush)
         pencolor.setAlpha(100)
@@ -76,6 +77,13 @@ class AzimuthWidget(QtWidgets.QWidget):
             p1 = QtCore.QPoint(self.rect().right(), self.rect().center().y())
             p2 = QtCore.QPoint(self.rect().left(), self.rect().center().y())
             painter.drawLine(p1, p2)
+        pencolor = QtGui.QColor(self.colors['border'])
+        pen = QtGui.QPen(pencolor)
+        pen.setStyle(QtCore.Qt.DotLine)
+        pen.setWidth(5)
+        painter.setPen(pen)
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.drawPie(rect, 90 * 16, 180 * 16)
         painter.end()
 
 
