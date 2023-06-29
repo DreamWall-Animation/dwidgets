@@ -269,6 +269,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         set_shortcut('R', self, self.rectangle.trigger)
         set_shortcut('C', self, self.circle.trigger)
         set_shortcut('A', self, self.arrow.trigger)
+        set_shortcut('Tab', self, self.toggle_panel)
 
         kwargs = dict(canvas=self.canvas, model=self.model)
         self.tools = {
@@ -491,3 +492,6 @@ class RetakeCanvas(QtWidgets.QWidget):
             widget.set_model(model)
         self.layerview.sync_view()
         self.canvas.repaint()
+
+    def toggle_panel(self):
+        self.left_scroll.setVisible(not self.left_scroll.isVisible())
