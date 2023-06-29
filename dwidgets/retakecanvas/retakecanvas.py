@@ -355,7 +355,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.splitter.addWidget(self.left_scroll)
         self.splitter.addWidget(self.right_widget)
         self.splitter.setStretchFactor(0, 1)
-        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setStretchFactor(1, 2)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

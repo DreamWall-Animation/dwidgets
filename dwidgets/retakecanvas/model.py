@@ -1,3 +1,4 @@
+import os
 from PySide2 import QtGui, QtCore
 
 from dwidgets.retakecanvas.layerstack import LayerStack, unique_layer_name
@@ -5,6 +6,7 @@ from dwidgets.retakecanvas.qtutils import COLORS
 from dwidgets.retakecanvas.selection import Selection
 from dwidgets.retakecanvas.navigator import Navigator
 from dwidgets.retakecanvas.viewport import ViewportMapper
+from dwidgets.retakecanvas.shapes import Bitmap
 
 
 UNDOLIMIT = 50
@@ -81,6 +83,14 @@ class RetakeCanvasModel:
         self.layerstack.add(name)
         if undo:
             self.add_undo_state()
+
+    def add_layer_image(self, path, undo=True):
+        name = os.path.splitext(os.path.basename(path))[0]
+        self.add_layer(undo=undo, name=name)
+        image = QtGui.QImage(path)
+        rect = QtCore.QRect(0, 0, image.size().width(), image.size().height())
+        shape = Bitmap(image, rect)
+        self.add_shape(shape)
 
     def move_layer(self, old_index, new_index):
         self.layerstack.move_layer(old_index, new_index)
