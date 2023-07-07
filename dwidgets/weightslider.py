@@ -285,7 +285,7 @@ class WeightSlider(QtWidgets.QWidget):
     def mousePressEvent(self, event):
         self._pressed_button = event.button()
         point = event.pos()
-        width = self.padding * 3
+        width = self.padding * 4
         self._handeling_index = point_hover_handles(self._handles, point, width)
         if self._handeling_index is not None:
             return
@@ -295,6 +295,7 @@ class WeightSlider(QtWidgets.QWidget):
                 for r in self._rects]
         else:
             rects = self._rects
+        rects = [grow_rect(r, -3) for r in rects]  # Safe zone
         self._drag_index = point_hover_rects(rects, point)
 
     def ballons_visible(self):
@@ -355,6 +356,9 @@ class WeightSlider(QtWidgets.QWidget):
             drag.setHotSpot(event.pos() - self.rect().topLeft())
             drag.exec_(QtCore.Qt.CopyAction)
             self._drag_index = None
+            return
+
+        if not self.editable:
             return
 
         if self._handeling_index is None:
@@ -418,7 +422,7 @@ class WeightSlider(QtWidgets.QWidget):
         return super().resizeEvent(event)
 
     def execute_comment_dialog(self, index, position):
-        dialog = CommentDialog(self.comments[index])
+        dialog = CommentDialog(self.comments[index], self.editable, self)
         dialog.move(self.mapToGlobal(position))
         if dialog.exec_() != QtWidgets.QDialog.Accepted:
             return
@@ -426,13 +430,14 @@ class WeightSlider(QtWidgets.QWidget):
 
 
 class CommentDialog(QtWidgets.QDialog):
-    def __init__(self, comment, parent=None):
+    def __init__(self, comment, editable=True, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Set comment')
         self.text = QtWidgets.QPlainTextEdit()
         self.text.setPlainText(comment or '')
         self.ok = QtWidgets.QPushButton('Ok')
         self.ok.released.connect(self.accept)
+        self.ok.setEnabled(editable)
         self.cancel = QtWidgets.QPushButton('Cancel')
         self.cancel.released.connect(self.reject)
 
@@ -722,6 +727,16 @@ def build_slider_graduations(rect, ratios, graduation, horizontal=True):
         points.append(point)
 
     return points
+
+
+def grow_rect(rect, value):
+    if rect is None:
+        return None
+    return QtCore.QRectF(
+        rect.left() - value,
+        rect.top() - value,
+        rect.width() + (value * 2),
+        rect.height() + (value * 2))
 
 
 def build_rect_with_padding(rect, padding):
