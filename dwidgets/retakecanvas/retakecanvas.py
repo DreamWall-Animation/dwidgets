@@ -268,6 +268,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         set_shortcut('S', self, self.selection_a.trigger)
         set_shortcut('R', self, self.rectangle.trigger)
         set_shortcut('C', self, self.circle.trigger)
+        set_shortcut('T', self, self.text.trigger)
         set_shortcut('A', self, self.arrow.trigger)
         set_shortcut('Tab', self, self.toggle_panel)
 
