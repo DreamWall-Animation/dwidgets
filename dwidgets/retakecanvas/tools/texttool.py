@@ -14,7 +14,10 @@ class TextTool(ShapeTool):
         return super().window_cursor_override() or QtCore.Qt.IBeamCursor
 
     def mousePressEvent(self, event):
+        super().mousePressEvent(event)
         if self.layerstack.is_locked or self.navigator.space_pressed:
+            return
+        if event.button() != QtCore.Qt.LeftButton:
             return
         if self.layerstack.current is None:
             self.model.add_layer(undo=False, name=self.layername)
