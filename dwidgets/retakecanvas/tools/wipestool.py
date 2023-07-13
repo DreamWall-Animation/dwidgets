@@ -57,6 +57,7 @@ class WipesTool(NavigationTool):
             rect.setBottom(cursor.y())
 
     def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
         self.handeling = False
         self.current_index = None
         self.current_side = None

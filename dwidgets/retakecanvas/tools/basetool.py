@@ -83,7 +83,10 @@ class NavigationTool(BaseTool):
                 factor = (offset.x() + offset.y()) / 10
                 self.zoom(factor, self.navigator.zoom_anchor)
                 return True
-        if self.navigator.left_pressed and self.navigator.space_pressed:
+        navigate = (
+            self.navigator.left_pressed and self.navigator.space_pressed or
+            self.navigator.center_pressed)
+        if navigate:
             offset = self.navigator.mouse_offset(event.pos())
             if offset is not None:
                 self.viewportmapper.origin = (
@@ -107,6 +110,9 @@ class NavigationTool(BaseTool):
     def window_cursor_override(self):
         space = self.navigator.space_pressed
         left = self.navigator.left_pressed
+        center = self.navigator.center_pressed
+        if center:
+            return QtCore.Qt.ClosedHandCursor
         if space and not left:
             return QtCore.Qt.OpenHandCursor
         if space and left:

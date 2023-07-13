@@ -12,6 +12,7 @@ class EraserTool(NavigationTool):
         self._mouse_buffer = None
 
     def mousePressEvent(self, event):
+        super().mousePressEvent(event)
         if not self.layerstack.current:
             return
         self._mouse_buffer = event.pos()
@@ -28,7 +29,8 @@ class EraserTool(NavigationTool):
         erase_on_layer(points_to_erase, self.layerstack.current)
         self._mouse_buffer = event.pos()
 
-    def mouseReleaseEvent(self, _):
+    def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
         result = bool(self._mouse_buffer)
         self._mouse_buffer = None
         return result

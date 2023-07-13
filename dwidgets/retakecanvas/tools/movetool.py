@@ -14,6 +14,7 @@ class MoveTool(NavigationTool):
         self.element_hover = None
 
     def mousePressEvent(self, event):
+        super().mousePressEvent(event)
         return_condition = (
             self.navigator.space_pressed or
             self.layerstack.current is None or
@@ -58,6 +59,7 @@ class MoveTool(NavigationTool):
             shift_element(self.selection.element, offset)
 
     def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
         result = bool(self._mouse_ghost) and bool(self.selection.type)
         self._mouse_ghost = None
         return result
@@ -130,6 +132,7 @@ class SelectionTool(NavigationTool):
         self.end = None
 
     def mousePressEvent(self, event):
+        super().mousePressEvent(event)
         wrong_button = event.button() != QtCore.Qt.LeftButton
         if self.navigator.space_pressed or wrong_button:
             return
@@ -144,6 +147,7 @@ class SelectionTool(NavigationTool):
         self.end = event.pos()
 
     def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
         if self.end is None or not self.layerstack.current:
             self.selection.clear()
         else:

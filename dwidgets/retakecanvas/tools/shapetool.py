@@ -21,6 +21,7 @@ class ShapeTool(NavigationTool):
             self.shape.handle(self.viewportmapper.to_units_coords(event.pos()))
 
     def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
         if self.shape:
             if not self.shape.is_valid:
                 self.layerstack.current.remove(self.shape)
@@ -50,7 +51,10 @@ class ArrowTool(ShapeTool):
         self.tailwidth = 10
 
     def mousePressEvent(self, event):
+        super().mousePressEvent(event)
         if self.layerstack.is_locked or self.navigator.space_pressed:
+            return
+        if event.button() != QtCore.Qt.LeftButton:
             return
         if self.layerstack.current is None:
             self.model.add_layer(undo=False, name=self.layername)
@@ -73,7 +77,10 @@ class RectangleTool(ShapeTool):
         self.shape_cls = Rectangle
 
     def mousePressEvent(self, event):
+        super().mousePressEvent(event)
         if self.layerstack.is_locked or self.navigator.space_pressed:
+            return
+        if event.button() != QtCore.Qt.LeftButton:
             return
         if self.layerstack.current is None:
             self.model.add_layer(undo=False, name=self.layername)
@@ -95,7 +102,10 @@ class CircleTool(ShapeTool):
         self.layername = 'Circle'
 
     def mousePressEvent(self, event):
+        super().mousePressEvent(event)
         if self.layerstack.is_locked or self.navigator.space_pressed:
+            return
+        if event.button() != QtCore.Qt.LeftButton:
             return
         if self.layerstack.current is None:
             self.model.add_layer(undo=False, name=self.layername)

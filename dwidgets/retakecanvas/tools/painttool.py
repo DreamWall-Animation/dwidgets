@@ -13,6 +13,7 @@ class DrawTool(NavigationTool):
         self.old_mouse_time = None
 
     def mousePressEvent(self, event):
+        super().mousePressEvent(event)
         if self.layerstack.is_locked or self.navigator.space_pressed:
             return
         self.pressure = 1
@@ -30,6 +31,7 @@ class DrawTool(NavigationTool):
             self.add_point(event.pos())
 
     def mouseReleaseEvent(self, event):
+        super().mouseReleaseEvent(event)
         if super().mouseMoveEvent(event):
             return
         if self.stroke:
