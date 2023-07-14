@@ -11,9 +11,6 @@ class ShapeTool(NavigationTool):
         self.layername = 'Shape'
         self.shape = None
 
-    def mousePressEvent(self, event):
-        raise NotImplementedError()
-
     def mouseMoveEvent(self, event):
         if super().mouseMoveEvent(event):
             return

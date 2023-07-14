@@ -191,9 +191,9 @@ class LeftScrollView(QtWidgets.QScrollArea):
 
 
 class RetakeCanvas(QtWidgets.QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, model=None, parent=None):
         super().__init__(parent=parent)
-        self.model = RetakeCanvasModel()
+        self.model = model or RetakeCanvasModel()
 
         self.layerview = LayerView(self.model)
         self.layerview.edited.connect(self.repaint)
