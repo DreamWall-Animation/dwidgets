@@ -1,13 +1,14 @@
 import datetime
 from PySide2 import QtWidgets, QtCore, QtGui
+from PySide2.QtCore import Qt
 
 
 class CalendarDialog(QtWidgets.QDialog):
-
-    def __init__(self, date, parent=None):
+    def __init__(self, date=None, parent=None):
         super().__init__(parent, QtCore.Qt.FramelessWindowHint)
         self.calendar = QtWidgets.QCalendarWidget()
-        self.calendar.setSelectedDate(date)
+        if date:
+            self.calendar.setSelectedDate(date)
 
         self.ok = QtWidgets.QPushButton('Set date')
         self.ok.released.connect(self.accept)
@@ -29,6 +30,66 @@ class CalendarDialog(QtWidgets.QDialog):
     @property
     def date(self):
         return self.calendar.selectedDate()
+
+
+class DatePickerButton(QtWidgets.QPushButton):
+    date_changed = QtCore.Signal()
+
+    def __init__(self, label, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.default_label = label
+        self.setText(f' {self.default_label} (off) ')
+        self.clicked.connect(self.pop)
+
+        self.first_date = None
+        self.last_date = None
+
+        # Menu
+        self.dates_menu = QtWidgets.QMenu()
+        self.calendar = QtWidgets.QCalendarWidget()
+        cancel_button = QtWidgets.QPushButton(' Cancel ')
+        cancel_button.clicked.connect(self.dates_menu.close)
+        reset_button = QtWidgets.QPushButton(' Reset ')
+        reset_button.clicked.connect(self.reset_dates)
+        validate_button = QtWidgets.QPushButton(' Confirm ')
+        validate_button.clicked.connect(self.set_dates)
+
+        layout = QtWidgets.QVBoxLayout(self.dates_menu)
+
+        layout.addWidget(self.calendar)
+
+        buttons_layout = QtWidgets.QHBoxLayout()
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(cancel_button)
+        buttons_layout.addWidget(reset_button)
+        buttons_layout.addWidget(validate_button)
+        layout.addLayout(buttons_layout)
+
+    def pop(self):
+        self.dates_menu.popup(self.mapToGlobal(self.rect().bottomLeft()))
+
+    def reset_dates(self):
+        self.date = None
+        self.setText(f' {self.default_label} (off) ')
+        self.date_changed.emit()
+        self.dates_menu.close()
+
+    def set_dates(self):
+        self.date = self.calendar.selectedDate().toPython()
+        self.setText(f'{self.default_label} ({self.date:%d/%m/%Y})')
+        self.date_changed.emit()
+        self.dates_menu.close()
+
+    @property
+    def dates(self):
+        return self.first_date, self.last_date
+
+    def mousePressEvent(self, event):
+        if event.type() == QtCore.QEvent.MouseButtonPress:
+            if event.button() == Qt.MiddleButton:
+                self.reset_dates()
+        return super().mousePressEvent(event)
 
 
 def date_prompt(parent=None, start_date=None, position=None):
