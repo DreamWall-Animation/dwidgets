@@ -69,8 +69,11 @@ class RangeSlider(QtWidgets.QWidget):
 
     def range_edited(self, *_):
         cls = float if self.decimal else int
-        minimum = cls(float(self.low.text()))
-        maximum = cls(float(self.high.text()))
+        try:
+            minimum = cls(float(self.low.text()))
+            maximum = cls(float(self.high.text()))
+        except ValueError:
+            return  # A field is empty
         self.range_changed.emit(minimum, maximum)
         self.bar.low = minimum
         self.bar.high = maximum
@@ -132,7 +135,7 @@ class RangeSliderBar(QtWidgets.QWidget):
 
     @high.setter
     def high(self, value):
-        self._low = value * (10 ** self.decimal)
+        self._high = value * (10 ** self.decimal)
         self.repaint()
 
     def is_min(self):
