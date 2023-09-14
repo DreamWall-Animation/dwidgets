@@ -105,7 +105,8 @@ class DropFilesArea(QtWidgets.QWidget):
         self.filepaths.extend([
             url.toLocalFile() for url in event.mimeData().urls()
             if not self.supported_extensions or
-            url.toLocalFile().endswith(tuple(self.supported_extensions))])
+            url.toLocalFile().lower().endswith(
+                tuple(self.supported_extensions))])
         self.repaint()
 
     def clear(self):
