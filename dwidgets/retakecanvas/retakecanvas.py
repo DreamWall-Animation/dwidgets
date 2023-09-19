@@ -1,6 +1,6 @@
 import os
 from functools import partial
-from PySide2 import QtWidgets, QtCore
+from PySide2 import QtWidgets, QtCore, QtGui
 from dwidgets.retakecanvas.button import (
     ColorAction, ComparingMediaTable, Garbage, ToolNameLabel)
 from dwidgets.retakecanvas import tools
@@ -470,7 +470,7 @@ class RetakeCanvas(QtWidgets.QWidget):
     def keyReleaseEvent(self, event):
         return self.canvas.keyReleaseEvent(event)
 
-    def set_baseimage(self, image):
+    def set_baseimage(self, image: QtGui.QImage):
         self.model.set_baseimage(image)
         self.canvas.repaint()
 

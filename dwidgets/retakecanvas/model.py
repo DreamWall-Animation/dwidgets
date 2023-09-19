@@ -55,7 +55,7 @@ class RetakeCanvasModel:
     def texts(self):
         return self.layerstack.texts
 
-    def append_image(self, image):
+    def append_image(self, image: QtGui.QImage):
         self.imagestack.append(image)
         width, height = image.size().width(), image.size().height()
         self.imagestack_wipes.append(QtCore.QRect(0, 0, width, height))
@@ -72,21 +72,21 @@ class RetakeCanvasModel:
         self.layerstack.duplicate_current()
         self.add_undo_state()
 
-    def set_baseimage(self, image):
+    def set_baseimage(self, image: QtGui.QImage):
         self.baseimage = image
         width, height = image.size().width(), image.size().height()
         self.baseimage_wipes = QtCore.QRect(0, 0, width, height)
 
-    def add_layer(self, undo=True, name=None):
+    def add_layer(self, undo=True, name=None, blend_mode=None):
         name = name or 'Layer'
         name = unique_layer_name(name, self.layerstack.names)
-        self.layerstack.add(name)
+        self.layerstack.add(name, blend_mode=blend_mode)
         if undo:
             self.add_undo_state()
 
-    def add_layer_image(self, path, undo=True):
+    def add_layer_image(self, path, blend_mode=None, undo=True):
         name = os.path.splitext(os.path.basename(path))[0]
-        self.add_layer(undo=undo, name=name)
+        self.add_layer(undo=undo, name=name, blend_mode=blend_mode)
         image = QtGui.QImage(path)
         rect = QtCore.QRect(0, 0, image.size().width(), image.size().height())
         shape = Bitmap(image, rect)

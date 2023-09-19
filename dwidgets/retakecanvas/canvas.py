@@ -190,7 +190,11 @@ class Canvas(QtWidgets.QWidget):
             QtWidgets.QApplication.restoreOverrideCursor()
             QtWidgets.QApplication.setOverrideCursor(override)
 
-    def render(self, painter=None, model=None, viewportmapper=None):
+    def render(
+            self,
+            painter: QtGui.QPainter=None,
+            model: RetakeCanvasModel=None,
+            viewportmapper: ViewportMapper=None):
         model = model or self.model
         viewportmapper = viewportmapper or ViewportMapper()
         baseimage = model.baseimage
@@ -204,6 +208,9 @@ class Canvas(QtWidgets.QWidget):
             model.baseimage,
             model.imagestack,
             layout=model.imagestack_layout) + [baseimage_rect]
+        blend_modes = [
+            QtGui.QPainter.CompositionMode_SourceOver,  # baseimage blend mode
+            *model.layerstack.blend_modes]
 
         if not painter:
             layer_rects = [
@@ -216,7 +223,9 @@ class Canvas(QtWidgets.QWidget):
             painter = QtGui.QPainter(image)
         else:
             image = None
-        self.draw_images(painter, rects, viewportmapper, model=model)
+
+        self.draw_images(
+            painter, rects, blend_modes, viewportmapper, model=model)
 
         if model.wash_opacity:
             painter.setPen(QtCore.Qt.transparent)
@@ -229,6 +238,7 @@ class Canvas(QtWidgets.QWidget):
             if not visible:
                 continue
             draw_layer(painter, layer, opacity, viewportmapper)
+
         return image
 
     def paintEvent(self, _):
@@ -259,7 +269,8 @@ class Canvas(QtWidgets.QWidget):
         painter.setPen(pen)
         painter.drawRect(self.rect())
 
-    def draw_images(self, painter, rects, viewportmapper, model=None):
+    def draw_images(
+            self, painter, rects, blend_modes, viewportmapper, model=None):
         model = model or self.model
         if model.imagestack_layout != RetakeCanvasModel.STACKED:
             images = self.model.imagestack + [model.baseimage]
@@ -271,12 +282,15 @@ class Canvas(QtWidgets.QWidget):
             images += [model.baseimage]
             wipes = model.imagestack_wipes[:]
             wipes.append(model.baseimage_wipes)
-            for image, rect, wipe in zip(images, rects, wipes):
+            for image, rect, blend_mode, wipe in zip(
+                    images, rects, blend_modes, wipes):
                 mode = QtCore.Qt.KeepAspectRatio
                 image = image.scaled(rect.size().toSize(), mode)
                 image = image.copy(wipe)
                 wipe = viewportmapper.to_viewport_rect(wipe)
+                painter.setCompositionMode(blend_mode)
                 painter.drawImage(wipe, image)
+        painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceOver)
 
 
 def draw_layer(painter, layer, opacity, viewportmapper):

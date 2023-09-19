@@ -1,20 +1,48 @@
 
 from PySide2 import QtCore
+from PySide2.QtGui import QPainter
 from dwidgets.retakecanvas.shapes import (
     Stroke, Arrow, Rectangle, Circle, Bitmap, Text)
 from dwidgets.retakecanvas.mathutils import distance_qline_qpoint
 
 UNDOLIMIT = 30
+BLEND_MODES = {
+    None: QPainter.CompositionMode_SourceOver,
+    'clear': QPainter.CompositionMode_Clear,
+    'colorburn': QPainter.CompositionMode_ColorBurn,
+    'colordodge': QPainter.CompositionMode_ColorDodge,
+    'darken': QPainter.CompositionMode_Darken,
+    'destination': QPainter.CompositionMode_Destination,
+    'destination_atop': QPainter.CompositionMode_DestinationAtop,
+    'destination_in': QPainter.CompositionMode_DestinationIn,
+    'destination_out': QPainter.CompositionMode_DestinationOut,
+    'destination_over': QPainter.CompositionMode_DestinationOver,
+    'difference': QPainter.CompositionMode_Difference,
+    'exclusion': QPainter.CompositionMode_Exclusion,
+    'hardlight': QPainter.CompositionMode_HardLight,
+    'lighten': QPainter.CompositionMode_Lighten,
+    'multiply': QPainter.CompositionMode_Multiply,
+    'overlay': QPainter.CompositionMode_Overlay,
+    'plus': QPainter.CompositionMode_Plus,
+    'screen': QPainter.CompositionMode_Screen,
+    'softlight': QPainter.CompositionMode_SoftLight,
+    'source': QPainter.CompositionMode_Source,
+    'source_atop': QPainter.CompositionMode_SourceAtop,
+    'source_in': QPainter.CompositionMode_SourceIn,
+    'source_out': QPainter.CompositionMode_SourceOut,
+    'source_over': QPainter.CompositionMode_SourceOver,
+    'xor': QPainter.CompositionMode_Xor,
+}
 
 
 class LayerStack:
-
     def __init__(self):
         super().__init__()
         self.layers = []
         self.locks = []
         self.names = []
         self.opacities = []
+        self.blend_modes = []
         self.visibilities = []
 
         self.current_index = None
@@ -36,10 +64,13 @@ class LayerStack:
     def current_index(self, value):
         self._current_index = value
 
-    def add(self, name):
+    def add(self, name, blend_mode=None):
+        if not isinstance(blend_mode, QPainter.CompositionMode):
+            blend_mode = BLEND_MODES[blend_mode]
         self.layers.append([])
         self.locks.append(False)
         self.opacities.append(255)
+        self.blend_modes.append(blend_mode)
         self.names.append(name)
         self.visibilities.append(True)
         self.current_index = len(self.layers) - 1
