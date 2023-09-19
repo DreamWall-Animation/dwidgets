@@ -274,8 +274,9 @@ class Canvas(QtWidgets.QWidget):
         model = model or self.model
         if model.imagestack_layout != RetakeCanvasModel.STACKED:
             images = self.model.imagestack + [model.baseimage]
-            for image, rect in zip(images, rects):
+            for image, rect, blend_mode in zip(images, rects, blend_modes):
                 rect = viewportmapper.to_viewport_rect(rect)
+                painter.setCompositionMode(blend_mode)
                 painter.drawImage(rect, image)
         else:
             images = list(reversed(model.imagestack))
