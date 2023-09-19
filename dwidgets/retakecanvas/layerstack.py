@@ -7,7 +7,6 @@ from dwidgets.retakecanvas.mathutils import distance_qline_qpoint
 
 UNDOLIMIT = 30
 BLEND_MODES = {
-    None: QPainter.CompositionMode_SourceOver,
     'clear': QPainter.CompositionMode_Clear,
     'colorburn': QPainter.CompositionMode_ColorBurn,
     'colordodge': QPainter.CompositionMode_ColorDodge,
@@ -66,7 +65,8 @@ class LayerStack:
 
     def add(self, name, blend_mode=None):
         if not isinstance(blend_mode, QPainter.CompositionMode):
-            blend_mode = BLEND_MODES[blend_mode]
+            blend_mode = BLEND_MODES.get(
+                blend_mode, QPainter.CompositionMode_SourceOver)
         self.layers.append([])
         self.locks.append(False)
         self.opacities.append(255)
