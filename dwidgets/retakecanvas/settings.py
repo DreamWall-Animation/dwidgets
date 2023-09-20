@@ -119,6 +119,8 @@ class ShapeSettings(QtWidgets.QWidget):
         if result != QtWidgets.QDialog.Accepted:
             return
         self.main_color.set_color(dialog.color)
+        if not self.element:
+            return
         self.element.color = dialog.color
         self.canvas.repaint()
         self.model.add_undo_state()
@@ -130,6 +132,8 @@ class ShapeSettings(QtWidgets.QWidget):
         if result != QtWidgets.QDialog.Accepted:
             return
         self.bgcolor.set_color(dialog.color)
+        if not self.element:
+            return
         self.element.bgcolor = dialog.color
         self.canvas.repaint()
         self.model.add_undo_state()
@@ -157,6 +161,8 @@ class ShapeSettings(QtWidgets.QWidget):
         self.canvas.repaint()
 
     def change_alignment(self, index):
+        if self.element is None:
+            return
         self.element.alignment = index
         self.canvas.repaint()
 
