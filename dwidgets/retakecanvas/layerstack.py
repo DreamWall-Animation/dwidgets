@@ -32,6 +32,7 @@ BLEND_MODE_NAMES = {
     QPainter.CompositionMode_SourceOver: 'Source Over',
     QPainter.CompositionMode_Xor: 'Xor',
 }
+BLEND_MODE_FOR_NAMES = {v: k for k, v in BLEND_MODE_NAMES.items()}
 
 
 class LayerStack:
@@ -80,13 +81,22 @@ class LayerStack:
         new_layer = [shape.copy() for shape in self.current]
         self.layers.insert(index, new_layer)
         self.opacities.insert(index, self.opacities[index])
+        self.blend_modes.insert(index, self.blend_modes[index])
         name = unique_layer_name(self.names[index], self.names)
         self.names.insert(index, name)
         self.visibilities.insert(index, self.visibilities[index])
         self.locks.insert(index, self.locks[index])
 
-    def set_current(self, index):
-        self.current_index = index
+    @property
+    def current_blend_mode_name(self):
+        if self.current_index is None:
+            return BLEND_MODE_NAMES[QPainter.CompositionMode_SourceOver]
+        return BLEND_MODE_NAMES[self.blend_modes[self.current_index]]
+
+    def set_current_blend_mode_name(self, name):
+        if not self.current_index:
+            return
+        self.blend_modes[self.current_index] = BLEND_MODE_FOR_NAMES[name]
 
     @property
     def is_locked(self):
@@ -106,6 +116,7 @@ class LayerStack:
         self.layers.insert(new_index, self.layers.pop(old_index))
         self.locks.insert(new_index, self.locks.pop(old_index))
         self.names.insert(new_index, self.names.pop(old_index))
+        self.blend_modes.insert(new_index, self.blend_modes[old_index])
         self.opacities.insert(new_index, self.opacities.pop(old_index))
         self.visibilities.insert(new_index, self.visibilities.pop(old_index))
         self.current_index = new_index
@@ -124,6 +135,7 @@ class LayerStack:
         self.layers.pop(index)
         self.visibilities.pop(index)
         self.opacities.pop(index)
+        self.blend_modes.pop(index)
         self.locks.pop(index)
         self.names.pop(index)
 
@@ -148,6 +160,7 @@ class LayerStack:
         return zip(
             self.layers,
             self.names,
+            self.blend_modes,
             self.locks,
             self.visibilities,
             self.opacities).__iter__()

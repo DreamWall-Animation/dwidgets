@@ -100,6 +100,10 @@ class RetakeCanvasModel:
         self.layerstack.current.append(shape)
         self.add_undo_state()
 
+    def set_current_blend_mode_name(self, name):
+        self.layerstack.set_current_blend_mode_name(name)
+        self.add_undo_state()
+
     def add_undo_state(self):
         self.redostack = []
         wipes = [QtCore.QRectF(w) for w in self.imagestack_wipes]
@@ -111,6 +115,7 @@ class RetakeCanvasModel:
             'layers': [[elt.copy() for elt in layer] for layer in layers],
             'locks': self.layerstack.locks.copy(),
             'opacities': self.layerstack.opacities.copy(),
+            'blend_modes': self.layerstack.blend_modes.copy(),
             'names': self.layerstack.names.copy(),
             'visibilities': self.layerstack.visibilities.copy(),
             'current': self.layerstack.current_index,
@@ -129,6 +134,7 @@ class RetakeCanvasModel:
         self.layerstack.locks = state['locks']
         self.layerstack.opacities = state['opacities']
         self.layerstack.names = state['names']
+        self.layerstack.blend_modes = state['blend_modes']
         self.layerstack.visibilities = state['visibilities']
         self.layerstack.current_index = state['current']
         self.wash_color = state['wash_color']
@@ -158,6 +164,7 @@ class RetakeCanvasModel:
             'baseimage_wipes': wipes,
             'imagestack': [],
             'imagestack_wipes': [],
+            'blend_modes': [],
             'layers': [],
             'locks': [],
             'names': [],

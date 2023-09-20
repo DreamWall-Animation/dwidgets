@@ -10,6 +10,7 @@ from PySide2 import QtCore, QtGui, QtWidgets
 class LayerStackView(QtWidgets.QWidget):
     ITEM_HEIGHT = 30
     PADDING = 10
+    current_changed = QtCore.Signal()
 
     def __init__(self, model, parent=None):
         super().__init__(parent)
@@ -94,6 +95,7 @@ class LayerStackView(QtWidgets.QWidget):
                 return
         elif self.handle_mode == 'drag':
             self.layerstack.current_index = self.handle_index
+            self.current_changed.emit()
         self.repaint()
 
     def mouseMoveEvent(self, event):
@@ -121,6 +123,7 @@ class LayerStackView(QtWidgets.QWidget):
         _, index = self.get_handle_infos(event.pos())
         if self.handle_mode == 'current' and index == self.handle_index:
             self.layerstack.current_index = index
+            self.current_changed.emit()
             self.release()
             return True
         if self.handle_mode == 'drag':
@@ -233,7 +236,7 @@ class LayerStackView(QtWidgets.QWidget):
         color.setAlpha(25)
         painter.setBrush(color)
         painter.drawRoundedRect(event.rect(), self.PADDING, self.PADDING)
-        for i, (rect, (_, name, lock, visible, opacity)) in iterator:
+        for i, (rect, (_, name, _, lock, visible, opacity)) in iterator:
             row = self.row(i)
             # Draw alternate row.
             if row % 2 == 0:

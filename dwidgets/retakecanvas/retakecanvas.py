@@ -6,6 +6,7 @@ from dwidgets.retakecanvas.button import (
 from dwidgets.retakecanvas import tools
 from dwidgets.retakecanvas.canvas import Canvas
 from dwidgets.retakecanvas.dialog import ColorSelection
+from dwidgets.retakecanvas.layerstack import BLEND_MODE_NAMES
 from dwidgets.retakecanvas.layerstackview import LayerStackView
 from dwidgets.retakecanvas.model import RetakeCanvasModel
 from dwidgets.retakecanvas.qtutils import icon, set_shortcut
@@ -28,6 +29,7 @@ class LayerView(QtWidgets.QWidget):
         self.model = model
         self.model.imagestack = model.imagestack
         self.layerstackview = LayerStackView(self.model)
+        self.layerstackview.current_changed.connect(self.sync_view)
         # Washed out
         self._wash_color = ColorAction()
         self._wash_color.color = self.model.wash_color
@@ -51,10 +53,17 @@ class LayerView(QtWidgets.QWidget):
         self.minus.triggered.connect(self.remove_current_layer)
         self.duplicate = QtWidgets.QAction('⧉', self)
         self.duplicate.triggered.connect(self.duplicate_layer)
+        self.blend_modes = QtWidgets.QComboBox()
+        self.blend_modes.currentIndexChanged.connect(self.change_blend_mode)
+        self.blend_modes.addItems(sorted(list(BLEND_MODE_NAMES.values())))
+        spacer = QtWidgets.QWidget()
+        spacer.setSizePolicy(*[QtWidgets.QSizePolicy.Expanding] * 2)
         self.toolbar = QtWidgets.QToolBar()
         self.toolbar.addAction(self.plus)
         self.toolbar.addAction(self.minus)
         self.toolbar.addAction(self.duplicate)
+        self.toolbar.addWidget(spacer)
+        self.toolbar.addWidget(self.blend_modes)
         # StackLayout
         self.tabled = QtWidgets.QAction(icon('table.png'), None, self)
         self.tabled.setCheckable(True)
@@ -102,6 +111,7 @@ class LayerView(QtWidgets.QWidget):
         layout.addWidget(ToolNameLabel('Comparing Media'))
         layout.addWidget(self.comparing_media)
         layout.addWidget(self.layout_types)
+        self.sync_view()
 
     def start_slide(self):
         self._wash_opacity_ghost = self._wash_opacity.value()
@@ -124,6 +134,10 @@ class LayerView(QtWidgets.QWidget):
         self._wash_opacity.blockSignals(True)
         self._wash_opacity.setValue(self.model.wash_opacity)
         self._wash_opacity.blockSignals(False)
+        self.blend_modes.blockSignals(True)
+        self.blend_modes.setCurrentText(
+            self.model.layerstack.current_blend_mode_name)
+        self.blend_modes.blockSignals(False)
 
     def set_model(self, model):
         self.model = model
@@ -146,6 +160,11 @@ class LayerView(QtWidgets.QWidget):
 
     def call_edited(self):
         self.layerstackview.repaint()
+        self.edited.emit()
+
+    def change_blend_mode(self):
+        blend_mode = self.blend_modes.currentText()
+        self.model.set_current_blend_mode_name(blend_mode)
         self.edited.emit()
 
     def remove_current_layer(self):

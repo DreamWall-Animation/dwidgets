@@ -208,9 +208,6 @@ class Canvas(QtWidgets.QWidget):
             model.baseimage,
             model.imagestack,
             layout=model.imagestack_layout) + [baseimage_rect]
-        blend_modes = [
-            QtGui.QPainter.CompositionMode_SourceOver,  # baseimage blend mode
-            *model.layerstack.blend_modes]
 
         if not painter:
             layer_rects = [
@@ -224,8 +221,7 @@ class Canvas(QtWidgets.QWidget):
         else:
             image = None
 
-        self.draw_images(
-            painter, rects, blend_modes, viewportmapper, model=model)
+        self.draw_images(painter, rects, viewportmapper, model=model)
 
         if model.wash_opacity:
             painter.setPen(QtCore.Qt.transparent)
@@ -234,10 +230,10 @@ class Canvas(QtWidgets.QWidget):
             painter.setBrush(color)
             painter.drawRect(viewportmapper.to_viewport_rect(baseimage_rect))
 
-        for layer, _, _, visible, opacity in model.layerstack:
+        for layer, _, blend_mode, _, visible, opacity in model.layerstack:
             if not visible:
                 continue
-            draw_layer(painter, layer, opacity, viewportmapper)
+            draw_layer(painter, layer, blend_mode, opacity, viewportmapper)
 
         return image
 
@@ -270,32 +266,30 @@ class Canvas(QtWidgets.QWidget):
         painter.drawRect(self.rect())
 
     def draw_images(
-            self, painter, rects, blend_modes, viewportmapper, model=None):
+            self, painter, rects, viewportmapper, model=None):
         model = model or self.model
         if model.imagestack_layout != RetakeCanvasModel.STACKED:
             images = self.model.imagestack + [model.baseimage]
-            for image, rect, blend_mode in zip(images, rects, blend_modes):
+            for image, rect in zip(images, rects):
                 rect = viewportmapper.to_viewport_rect(rect)
-                painter.setCompositionMode(blend_mode)
                 painter.drawImage(rect, image)
         else:
             images = list(reversed(model.imagestack))
             images += [model.baseimage]
             wipes = model.imagestack_wipes[:]
             wipes.append(model.baseimage_wipes)
-            for image, rect, blend_mode, wipe in zip(
-                    images, rects, blend_modes, wipes):
+            for image, rect, wipe in zip(images, rects, wipes):
                 mode = QtCore.Qt.KeepAspectRatio
                 image = image.scaled(rect.size().toSize(), mode)
                 image = image.copy(wipe)
                 wipe = viewportmapper.to_viewport_rect(wipe)
-                painter.setCompositionMode(blend_mode)
                 painter.drawImage(wipe, image)
-        painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceOver)
 
 
-def draw_layer(painter, layer, opacity, viewportmapper):
+def draw_layer(
+        painter: QtGui.QPainter, layer, blend_mode, opacity, viewportmapper):
     painter.setOpacity(opacity / 255)
+    painter.setCompositionMode(blend_mode)
     for element in layer:
         if isinstance(element, Stroke):
             draw_stroke(painter, element, viewportmapper)
@@ -310,6 +304,7 @@ def draw_layer(painter, layer, opacity, viewportmapper):
         elif isinstance(element, Text):
             draw_text(painter, element, viewportmapper)
     painter.setOpacity(1)
+    painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceOver)
 
 
 def _get_text_alignment_flags(alignment):
