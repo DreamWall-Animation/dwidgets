@@ -6,31 +6,31 @@ from dwidgets.retakecanvas.shapes import (
 from dwidgets.retakecanvas.mathutils import distance_qline_qpoint
 
 UNDOLIMIT = 30
-BLEND_MODES = {
-    'clear': QPainter.CompositionMode_Clear,
-    'colorburn': QPainter.CompositionMode_ColorBurn,
-    'colordodge': QPainter.CompositionMode_ColorDodge,
-    'darken': QPainter.CompositionMode_Darken,
-    'destination': QPainter.CompositionMode_Destination,
-    'destination_atop': QPainter.CompositionMode_DestinationAtop,
-    'destination_in': QPainter.CompositionMode_DestinationIn,
-    'destination_out': QPainter.CompositionMode_DestinationOut,
-    'destination_over': QPainter.CompositionMode_DestinationOver,
-    'difference': QPainter.CompositionMode_Difference,
-    'exclusion': QPainter.CompositionMode_Exclusion,
-    'hardlight': QPainter.CompositionMode_HardLight,
-    'lighten': QPainter.CompositionMode_Lighten,
-    'multiply': QPainter.CompositionMode_Multiply,
-    'overlay': QPainter.CompositionMode_Overlay,
-    'plus': QPainter.CompositionMode_Plus,
-    'screen': QPainter.CompositionMode_Screen,
-    'softlight': QPainter.CompositionMode_SoftLight,
-    'source': QPainter.CompositionMode_Source,
-    'source_atop': QPainter.CompositionMode_SourceAtop,
-    'source_in': QPainter.CompositionMode_SourceIn,
-    'source_out': QPainter.CompositionMode_SourceOut,
-    'source_over': QPainter.CompositionMode_SourceOver,
-    'xor': QPainter.CompositionMode_Xor,
+BLEND_MODE_NAMES = {
+    QPainter.CompositionMode_Clear: 'Clear',
+    QPainter.CompositionMode_ColorBurn: 'Colorburn',
+    QPainter.CompositionMode_ColorDodge: 'Colordodge',
+    QPainter.CompositionMode_Darken: 'Darken',
+    QPainter.CompositionMode_Destination: 'Destination',
+    QPainter.CompositionMode_DestinationAtop: 'Destination Atop',
+    QPainter.CompositionMode_DestinationIn: 'Destination In',
+    QPainter.CompositionMode_DestinationOut: 'Destination Out',
+    QPainter.CompositionMode_DestinationOver: 'Destination Over',
+    QPainter.CompositionMode_Difference: 'Difference',
+    QPainter.CompositionMode_Exclusion: 'Exclusion',
+    QPainter.CompositionMode_HardLight: 'Hardlight',
+    QPainter.CompositionMode_Lighten: 'Lighten',
+    QPainter.CompositionMode_Multiply: 'Multiply',
+    QPainter.CompositionMode_Overlay: 'Overlay',
+    QPainter.CompositionMode_Plus: 'Plus',
+    QPainter.CompositionMode_Screen: 'Screen',
+    QPainter.CompositionMode_SoftLight: 'Softlight',
+    QPainter.CompositionMode_Source: 'Source',
+    QPainter.CompositionMode_SourceAtop: 'Source Atop',
+    QPainter.CompositionMode_SourceIn: 'Source In',
+    QPainter.CompositionMode_SourceOut: 'Source Out',
+    QPainter.CompositionMode_SourceOver: 'Source Over',
+    QPainter.CompositionMode_Xor: 'Xor',
 }
 
 
@@ -63,10 +63,8 @@ class LayerStack:
     def current_index(self, value):
         self._current_index = value
 
-    def add(self, name, blend_mode=None):
-        if not isinstance(blend_mode, QPainter.CompositionMode):
-            blend_mode = BLEND_MODES.get(
-                blend_mode, QPainter.CompositionMode_SourceOver)
+    def add(self, name, blend_mode: QPainter.CompositionMode=None):
+        blend_mode = blend_mode or QPainter.CompositionMode_SourceOver
         self.layers.append([])
         self.locks.append(False)
         self.opacities.append(255)
