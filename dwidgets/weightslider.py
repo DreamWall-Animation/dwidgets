@@ -367,11 +367,16 @@ class WeightSlider(QtWidgets.QWidget):
                 QtWidgets.QApplication.setOverrideCursor(cursor)
             else:
                 QtWidgets.QApplication.restoreOverrideCursor()
+            index = self.index_at(event.pos(), global_coordinates=False)
+            if index is not None:
+                self.setToolTip(self.texts[index])
             return
 
         index = self._handeling_index
         ratio = to_ratio(self.rect(), event.pos(), self.horizontal)
-        self.ratios = set_ratio_at(index, ratio, self.ratios)
+        self.ratios = set_ratio_at(
+            index, ratio, self.ratios,
+            min_weight=(1 / self._graduation))
         if self._graduation is not None:
             self.ratios = graduate(self.ratios, self._graduation)
         self.update_geometries()
@@ -594,6 +599,8 @@ def draw_slider(
                 painter.setBrush(QtCore.Qt.black)
                 full_rect.setRight(full_rect.right() - r.width())
                 text = QtGui.QStaticText(text)
+                if text.size().height() > (full_rect.height() * 1.3):
+                    text = QtGui.QStaticText('....')
                 x = full_rect.center().x() - (text.size().width() / 2)
                 y = full_rect.center().y() - (text.size().height() / 2)
                 painter.drawStaticText(int(x), int(y), text)
