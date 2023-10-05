@@ -116,7 +116,7 @@ class LayerStack:
         self.layers.insert(new_index, self.layers.pop(old_index))
         self.locks.insert(new_index, self.locks.pop(old_index))
         self.names.insert(new_index, self.names.pop(old_index))
-        self.blend_modes.insert(new_index, self.blend_modes[old_index])
+        self.blend_modes.insert(new_index, self.blend_modes.pop(old_index))
         self.opacities.insert(new_index, self.opacities.pop(old_index))
         self.visibilities.insert(new_index, self.visibilities.pop(old_index))
         self.current_index = new_index
