@@ -286,7 +286,8 @@ class WeightSlider(QtWidgets.QWidget):
         self._pressed_button = event.button()
         point = event.pos()
         width = self.padding * 4
-        self._handeling_index = point_hover_handles(self._handles, point, width)
+        self._handeling_index = point_hover_handles(
+            self._handles, point, width)
         if self._handeling_index is not None:
             return
         if self._orientation == QtCore.Qt.Vertical:
@@ -389,7 +390,9 @@ class WeightSlider(QtWidgets.QWidget):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         if self._rects:
-            texts = self._texts if self.display_texts else [''] * len(self._colors)
+            texts = (
+                self._texts if self.display_texts else
+                [''] * len(self._colors))
             gp = self._graduation_points if self.display_gaduations else None
             draw_slider(
                 painter=painter,
