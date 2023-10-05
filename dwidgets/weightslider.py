@@ -54,7 +54,8 @@ class WeightSlider(QtWidgets.QWidget):
     def __init__(
             self,
             weights, colors=None, texts=None, data=None, comments=None,
-            orientation=None, graduation=DEFAULT_GRADUATION, parent=None):
+            orientation=None, graduation=DEFAULT_GRADUATION, steps=4,
+            parent=None):
         """
         @weights: List[float]
             Sum of weight must be 1.0.
@@ -78,6 +79,8 @@ class WeightSlider(QtWidgets.QWidget):
             Possible values: QtCore.Qt.Vertical or QtCore.Qt.Horizontal
             Default is Horizontal.
         @graduation: int
+        @steps: int
+            Each step's graduation you draw a ticker one.
         @parent: QtWidgets.QWidget
 
         Attributes:
@@ -114,9 +117,11 @@ class WeightSlider(QtWidgets.QWidget):
         self._data = data or [None] * len(weights)
         self._orientation = orientation or QtCore.Qt.Horizontal
         self._graduation = max((graduation, len(weights)))
+        self._steps = steps
         self._rects = []
         self._handles = []
         self._graduation_points = []
+        self._step_indexes = []
         self._handeling_index = None
         self._drag_index = None
         self._pressed_button = None
@@ -261,8 +266,9 @@ class WeightSlider(QtWidgets.QWidget):
             self.rect(), self.weights, self.horizontal, column_width)
         self._handles = build_slider_handles(
             self.rect(), self.weights, self.horizontal)
-        self._graduation_points = build_slider_graduations(
-            self.rect(), self.ratios, self._graduation, self.horizontal)
+        self._graduation_points, self._step_indexes = build_slider_graduations(
+            self.rect(), self.ratios, self._graduation, self._steps,
+            self.horizontal)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasColor() and event.mimeData().parent() != self:
@@ -394,6 +400,7 @@ class WeightSlider(QtWidgets.QWidget):
                 self._texts if self.display_texts else
                 [''] * len(self._colors))
             gp = self._graduation_points if self.display_gaduations else None
+            st = self._step_indexes if self.display_gaduations else None
             draw_slider(
                 painter=painter,
                 rect=self.rect(),
@@ -404,6 +411,7 @@ class WeightSlider(QtWidgets.QWidget):
                 draw_borders=self.display_borders,
                 border_color=self.border_color,
                 graduations=gp,
+                step_indexes=st,
                 graduation_color=self.graduation_color,
                 orientation=self._orientation)
             if self.ballons_visible():
@@ -585,7 +593,8 @@ def get_comment_path(position, scale=1):
 
 def draw_slider(
         painter, rect, rects, colors, texts, padding, draw_borders,
-        border_color, graduations, graduation_color, orientation):
+        border_color, graduations, step_indexes, graduation_color,
+        orientation):
 
     for r, color, text in zip(rects, colors, texts):
         painter.setPen(QtCore.Qt.transparent)
@@ -616,7 +625,8 @@ def draw_slider(
 
     if graduations:
         draw_graduation(
-            painter, r, orientation, graduations, padding, graduation_color)
+            painter, r, orientation, graduations, step_indexes,
+            padding, graduation_color)
 
     if draw_borders:
         pen = QtGui.QPen(QtGui.QColor(border_color))
@@ -626,14 +636,15 @@ def draw_slider(
         painter.drawRoundedRect(build_rect_with_padding(rect, padding), 8, 8)
 
 
-def draw_graduation(painter, rect, orientation, points, padding, color):
+def draw_graduation(
+        painter, rect, orientation, points, step_indexes, padding, color):
     color = QtGui.QColor(color)
     color.setAlpha(150)
     pen = QtGui.QPen(color)
-    pen.setWidth(1)
-    painter.setPen(pen)
     painter.setBrush(QtGui.QBrush(color))
-    for point in points:
+    for i, point in enumerate(points):
+        pen.setWidth(3 if step_indexes and i in step_indexes else 1)
+        painter.setPen(pen)
         if orientation == QtCore.Qt.Horizontal:
             start = QtCore.QPoint(point.x(), rect.top())
             end = QtCore.QPoint(point.x(), rect.height() + (padding * 2))
@@ -720,14 +731,16 @@ def build_slider_handles(rect, weights, horizontal=True):
     return lines
 
 
-def build_slider_graduations(rect, ratios, graduation, horizontal=True):
+def build_slider_graduations(rect, ratios, graduation, steps, horizontal=True):
     total = 0
     points = []
     step = 1 / graduation
-
+    index = 0
+    step_indexes = []
     while total < 1:
         total += step
         if total in ratios:
+            index += 1
             continue
         grade = to_grade(rect, total, horizontal)
         if horizontal:
@@ -735,8 +748,11 @@ def build_slider_graduations(rect, ratios, graduation, horizontal=True):
         else:
             point = QtCore.QPointF(rect.center().x(), grade)
         points.append(point)
+        if steps and (index + 1) % steps == 0:
+            step_indexes.append(points.index(point))
+        index += 1
 
-    return points
+    return points, step_indexes
 
 
 def grow_rect(rect, value):
