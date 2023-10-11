@@ -45,12 +45,20 @@ class EraserTool(NavigationTool):
     def draw(self, painter):
         if self.navigator.space_pressed:
             return
-        radius = self.viewportmapper.to_viewport(self.drawcontext.size)
+
         painter.setCompositionMode(QtGui.QPainter.CompositionMode_Difference)
         painter.setPen(QtCore.Qt.white)
         painter.setBrush(QtCore.Qt.transparent)
+        radius = self.viewportmapper.to_viewport(self.drawcontext.size)
         pos = self.canvas.mapFromGlobal(QtGui.QCursor.pos())
-        painter.drawEllipse(pos, radius / 2, radius / 2)
+        if radius >= 2:
+            painter.drawEllipse(pos, radius / 2, radius / 2)
+            return
+        painter.drawEllipse(pos, 1, 1)
+        painter.drawLine(pos.x(), pos.y() - 8, pos.x(), pos.y() - 4)
+        painter.drawLine(pos.x(), pos.y() + 4, pos.x(), pos.y() + 8)
+        painter.drawLine(pos.x() - 8, pos.y(), pos.x() - 4, pos.y())
+        painter.drawLine(pos.x() + 4, pos.y(), pos.x() + 8, pos.y())
 
 
 def split_stroke_data(stroke, points):
