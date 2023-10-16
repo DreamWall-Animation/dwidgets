@@ -4,13 +4,16 @@ from PySide2.QtCore import Qt
 
 
 class CalendarDialog(QtWidgets.QDialog):
-    def __init__(self, date=None, parent=None):
+    def __init__(self, date=None, confirm_label=None, parent=None):
         super().__init__(parent, QtCore.Qt.FramelessWindowHint)
+
+        confirm_label = confirm_label or 'Set date'
+
         self.calendar = QtWidgets.QCalendarWidget()
         if date:
             self.calendar.setSelectedDate(date)
 
-        self.ok = QtWidgets.QPushButton('Set date')
+        self.ok = QtWidgets.QPushButton(confirm_label)
         self.ok.released.connect(self.accept)
         self.cancel = QtWidgets.QPushButton('Cancel')
         self.cancel.released.connect(self.reject)
@@ -92,10 +95,12 @@ class DatePickerButton(QtWidgets.QPushButton):
         return super().mousePressEvent(event)
 
 
-def date_prompt(parent=None, start_date=None, position=None):
+def date_prompt(
+        parent=None, start_date=None, position=None, confirm_label=None):
     if not start_date:
         start_date = datetime.date.today()
-    dialog = CalendarDialog(date=start_date, parent=parent)
+    dialog = CalendarDialog(
+        date=start_date, parent=parent, confirm_label=confirm_label)
     if not position:
         position = QtGui.QCursor().pos()
     dialog.move(position)
