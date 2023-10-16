@@ -501,6 +501,7 @@ class RetakeCanvas(QtWidgets.QWidget):
             widget.setVisible(widget == self.setting_widgets.get(action))
 
     def set_model(self, model):
+        model = model or RetakeCanvasModel()
         self.model = model
         self.layerview.set_model(model)
         self.canvas.set_model(model)
