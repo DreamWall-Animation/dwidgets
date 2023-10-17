@@ -50,12 +50,13 @@ class WeightSlider(QtWidgets.QWidget):
             all weights must be 1.0
     """
     released = QtCore.Signal()
+    ratios_changed = QtCore.Signal()
 
     def __init__(
             self,
             weights, colors=None, texts=None, data=None, comments=None,
             orientation=None, graduation=DEFAULT_GRADUATION, steps=4,
-            parent=None):
+            dragable=True, parent=None):
         """
         @weights: List[float]
             Sum of weight must be 1.0.
@@ -117,6 +118,7 @@ class WeightSlider(QtWidgets.QWidget):
         self._data = data or [None] * len(weights)
         self._orientation = orientation or QtCore.Qt.Horizontal
         self._graduation = max((graduation, len(weights)))
+        self._dragable = dragable
         self._steps = steps
         self._rects = []
         self._handles = []
@@ -303,7 +305,8 @@ class WeightSlider(QtWidgets.QWidget):
         else:
             rects = self._rects
         rects = [grow_rect(r, -3) for r in rects]  # Safe zone
-        self._drag_index = point_hover_rects(rects, point)
+        if self._dragable:
+            self._drag_index = point_hover_rects(rects, point)
 
     def ballons_visible(self):
         return (
@@ -381,11 +384,14 @@ class WeightSlider(QtWidgets.QWidget):
 
         index = self._handeling_index
         ratio = to_ratio(self.rect(), event.pos(), self.horizontal)
+        old_ratios = self.ratios[:]
         self.ratios = set_ratio_at(
             index, ratio, self.ratios,
             min_weight=(1 / self._graduation))
         if self._graduation is not None:
             self.ratios = graduate(self.ratios, self._graduation)
+        if old_ratios != self.ratios:
+            self.ratios_changed.emit()
         self.update_geometries()
         self.repaint()
 
