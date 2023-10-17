@@ -1,9 +1,7 @@
-
-
 from PySide2 import QtWidgets
 
 
-def ensure_window_on_screen(window):
+def move_widget_in_screen(window):
     index = QtWidgets.QApplication.desktop().screenNumber(window)
     screen = QtWidgets.QApplication.screens()[index]
     screen_geometry = screen.availableGeometry()

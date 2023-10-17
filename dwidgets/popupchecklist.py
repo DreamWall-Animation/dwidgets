@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from PySide2 import QtWidgets, QtCore
 from PySide2.QtCore import Qt
-from dwidgets.qtutils import ensure_window_on_screen
+from dwidgets.qtutils import move_widget_in_screen
 
 
 EMPTY_LABEL = '-'
@@ -143,7 +143,7 @@ class PopupCheckListButton(QtWidgets.QPushButton):
     def popup(self):
         position = self.mapToGlobal(self.rect().bottomLeft())
         self.menu.popup(position)
-        ensure_window_on_screen(self.menu)
+        move_widget_in_screen(self.menu)
 
     def _set_text(self):
         labels = self.menu.checked_items_labels()

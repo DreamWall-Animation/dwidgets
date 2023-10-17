@@ -1,6 +1,9 @@
 import datetime
+
 from PySide2 import QtWidgets, QtCore, QtGui
 from PySide2.QtCore import Qt
+
+from dwidgets.qtutils import move_widget_in_screen
 
 
 class CalendarDialog(QtWidgets.QDialog):
@@ -33,6 +36,10 @@ class CalendarDialog(QtWidgets.QDialog):
     @property
     def date(self):
         return self.calendar.selectedDate()
+    
+    def showEvent(self, event) -> None:
+        move_widget_in_screen(self)
+        return super().showEvent(event)
 
 
 class DatePickerButton(QtWidgets.QPushButton):
@@ -71,6 +78,7 @@ class DatePickerButton(QtWidgets.QPushButton):
 
     def pop(self):
         self.dates_menu.popup(self.mapToGlobal(self.rect().bottomLeft()))
+        move_widget_in_screen(self.dates_menu)
 
     def reset_dates(self):
         self.date = None
