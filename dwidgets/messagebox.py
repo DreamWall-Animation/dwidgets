@@ -2,10 +2,11 @@ from PySide2 import QtWidgets
 
 
 class ScrollMessageBox(QtWidgets.QMessageBox):
-    def __init__(self, title, text, parent=None, *args, **kwargs):
+    def __init__(self, text, title=None, parent=None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
 
-        self.setWindowTitle(title)
+        if title:
+            self.setWindowTitle(title)
 
         self._text = text
         self.text_edit = QtWidgets.QTextEdit(text=text, readOnly=True)
@@ -35,7 +36,7 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     w = QtWidgets.QWidget()
     s = ScrollMessageBox(
-        w, 'test', 'content' + '\n1\n2\n3' * 20)
+        text='content' + '\n1\n2\n3' * 20, title='test', parent=w)
     b = QtWidgets.QPushButton('show', clicked=s.exec_)
     ly = QtWidgets.QVBoxLayout(w)
     ly.addWidget(b)
