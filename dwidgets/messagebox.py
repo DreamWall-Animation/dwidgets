@@ -1,9 +1,8 @@
 from PySide2 import QtWidgets
-from PySide2.QtCore import Qt
 
 
 class ScrollMessageBox(QtWidgets.QMessageBox):
-    def __init__(self, parent, title, text, *args, **kwargs):
+    def __init__(self, title, text, parent=None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
 
         self.setWindowTitle(title)
