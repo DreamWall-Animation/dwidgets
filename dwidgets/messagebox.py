@@ -9,25 +9,22 @@ class ScrollMessageBox(QtWidgets.QMessageBox):
         self.setWindowTitle(title)
 
         self._text = text
-        self.label = QtWidgets.QLabel(text=text, alignment=Qt.AlignTop)
-        self.text = self.label.text
+        self.text_edit = QtWidgets.QTextEdit(text=text, readOnly=True)
+        self.text = self.text_edit.toPlainText
 
         self.copy_button = QtWidgets.QPushButton('copy text')
         self.copy_button.clicked.connect(self.text_to_clipboard)
 
         self.setButtonText(1, 'Close')
 
-        scroll = QtWidgets.QScrollArea(self)
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(self.label)
         cols = self.layout().columnCount()
-        self.layout().addWidget(scroll, 0, 0, 1, cols)
+        self.layout().addWidget(self.text_edit, 0, 0, 1, cols)
         self.layout().addWidget(self.copy_button, 1, 0, 1, cols)
 
         if 'minimumWidth' not in kwargs:
-            scroll.setMinimumWidth(400)
+            self.text_edit.setMinimumWidth(400)
         if 'minimumHeight' not in kwargs:
-            scroll.setMinimumHeight(400)
+            self.text_edit.setMinimumHeight(400)
 
     def text_to_clipboard(self):
         clip = QtWidgets.QApplication.clipboard()
