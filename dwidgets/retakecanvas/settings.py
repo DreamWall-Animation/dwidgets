@@ -170,6 +170,7 @@ class ShapeSettings(QtWidgets.QWidget):
         if not isinstance(self.element, Text):
             return
         self.element.text = self.text_content.toPlainText()
+        self.canvas.tool.is_dirty = True
         self.canvas.repaint()
 
     def size_changed(self, value):

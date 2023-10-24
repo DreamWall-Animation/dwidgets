@@ -168,6 +168,8 @@ class Canvas(QtWidgets.QWidget):
 
     @disable_if_model_locked
     def set_tool(self, tool):
+        if self.tool.is_dirty:
+            self.model.add_undo_state()
         self.tool = tool
         self.update_cursor()
         self.repaint()

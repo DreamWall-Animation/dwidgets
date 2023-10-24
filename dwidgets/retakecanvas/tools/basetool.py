@@ -10,6 +10,7 @@ class BaseTool:
     def __init__(self, canvas=None, model=None):
         self.canvas = canvas
         self.model = model
+        self.is_dirty = False
 
     @property
     def drawcontext(self):
