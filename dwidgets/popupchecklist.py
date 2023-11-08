@@ -17,6 +17,8 @@ def get_multiple_selection_text(
     else:
         text = f'({len(selected_labels)}/{max_labels})'
         text = f'{included_title}: {text}' if included_title else text
+    if text == '':
+        text = '(empties)'
     return text
 
 
