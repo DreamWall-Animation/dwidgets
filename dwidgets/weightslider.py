@@ -109,6 +109,7 @@ class WeightSlider(QtWidgets.QWidget):
             released
 
         """
+        weights = _ensure_weights_precisions(weights)
         _args_sanity_check(weights, colors, texts, data, comments, graduation)
 
         super().__init__(parent=parent)
@@ -188,6 +189,7 @@ class WeightSlider(QtWidgets.QWidget):
 
     @weights.setter
     def weigths(self, weights):
+        weights = _ensure_weights_precisions(weights)
         _sanity_weights(weights, self._graduation)
         self.ratios = to_ratios(weights)
         self.update_geometries()
@@ -196,6 +198,7 @@ class WeightSlider(QtWidgets.QWidget):
             self, weights, colors=None, texts=None, data=None, comments=None,
             graduation=None):
         graduation = graduation or self._graduation
+        weights = _ensure_weights_precisions(weights)
         _args_sanity_check(weights, colors, texts, data, comments, graduation)
         self.ratios = to_ratios(weights)
         self._colors = colors or BUILTIN_COLORS[:len(weights)]
@@ -490,6 +493,18 @@ def _args_sanity_check(weights, colors, texts, data, comments, graduation):
                 'matchs with number of weights')
 
 
+def _ensure_weights_precisions(weights):
+    if not weights:
+        return []
+    total = sum(weights)
+    diff = 1 - total
+    print(abs(diff))
+    if 0 < abs(diff) < 0.000001:
+        weights[0] += diff
+        print('last_weight_modified', diff, sum(weights))
+    return weights
+
+
 def _sanity_weights(weights, graduation):
     """
     Ensure the number of weights is no longer than graduation and its sum is
@@ -501,7 +516,9 @@ def _sanity_weights(weights, graduation):
         msg = 'Weights number cant be longer than graduation.'
         raise ValueError(msg)
     if to_ratios(weights)[-1] != 1.0 or sum(weights) != 1:
-        raise ValueError('Sum of weigths has to be equal to 1.0')
+        raise ValueError(
+            'Sum of weigths has to be equal to 1.0 but is '
+            f'{sum(weights)} ({weights})')
     for weight in weights:
         if not (0 < weight <= 1):
             raise ValueError('Slider weight must be between 0 and 1')
