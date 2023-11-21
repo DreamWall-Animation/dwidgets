@@ -6,6 +6,7 @@ from dwidgets.dropfilesarea import DropFilesArea
 from dwidgets.daterangewidget import DateRangeFilterButton
 from dwidgets.messagebox import ScrollMessageBox
 from dwidgets.popupchecklist import PopupCheckList, PopupCheckListButton
+from dwidgets.popupchecklist2 import PopupCheckListButton2
 from dwidgets.retakecanvas.retakecanvas import RetakeCanvas
 from dwidgets.retakecanvas.model import RetakeCanvasModel
 from dwidgets.tag import TagView
