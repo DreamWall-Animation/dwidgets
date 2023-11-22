@@ -260,13 +260,20 @@ class PopupCheckListModel(QtCore.QAbstractListModel):
         self.checked_items_changed.emit(self.checked_data())
         self.layoutChanged.emit()
 
-    def set_checked_data(self, data):
+    def set_checked_data(self, data, unchecked=False):
         self.layoutAboutToBeChanged.emit()
-        self.checked = [item_data in data for (_, item_data) in self.items]
+        if not unchecked:
+            self.checked = [item_data in data for (_, item_data) in self.items]
+        else:
+            self.checked = [
+                item_data not in data for (_, item_data) in self.items]
         self.layoutChanged.emit()
 
     def checked_data(self):
         return [self.items[i][-1] for i, v in enumerate(self.checked) if v]
+
+    def unchecked_data(self):
+        return [self.items[i][-1] for i, v in enumerate(self.checked) if not v]
 
     def checked_labels(self):
         return [self.items[i][0] for i, v in enumerate(self.checked) if v]
@@ -294,11 +301,12 @@ class PopupCheckListButton2(QtWidgets.QWidget):
             self, included_title=None, static_title=False, items=None,
             allow_save_presets=False, selection_limit=None, presets_path=None,
             presets_button_id=None, restore_states=True, default=False,
-            parent=None):
+            save_unchecked_values=False, parent=None):
         super().__init__(parent)
 
         self.presets = Presets(presets_path) if presets_path else None
         self.presets_button_id = presets_button_id
+        self.save_unchecked_states = save_unchecked_values
         self.static_title = static_title
 
         self.presets_menu = None
@@ -338,7 +346,8 @@ class PopupCheckListButton2(QtWidgets.QWidget):
         if self.presets and restore_states:
             states = self.presets.get_states(self.presets_button_id)
             if states is not None:
-                self.menu.model.set_checked_data(states)
+                self.menu.model.set_checked_data(
+                    states, self.save_unchecked_states)
             else:
                 self.menu.model.check_all(default)
         else:
@@ -347,8 +356,11 @@ class PopupCheckListButton2(QtWidgets.QWidget):
         self._set_text()
 
     def save_states(self, data):
-        if self.presets:
-            self.presets.save_states(self.presets_button_id, data)
+        if not self.presets:
+            return
+        if self.save_unchecked_states:
+            data = self.menu.model.unchecked_data()
+        self.presets.save_states(self.presets_button_id, data)
 
     def popup(self):
         position = self.mapToGlobal(self.rect().bottomLeft())
@@ -435,6 +447,7 @@ if __name__ == '__main__':
         presets_path='c:/temp/my_preset_test.json',
         presets_button_id='theoneandonly',
         allow_save_presets=True,
+        save_unchecked_values=True,
         restore_states=True,
         items=items)
     menu.show()
