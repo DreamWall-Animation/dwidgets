@@ -1,8 +1,11 @@
+from functools import partial
 from PySide2 import QtWidgets
 
 
 class ScrollMessageBox(QtWidgets.QMessageBox):
-    def __init__(self, text, title=None, parent=None, *args, **kwargs):
+    def __init__(
+            self, text, title=None, parent=None, buttons_and_roles=None,
+            *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
 
         if title:
@@ -15,7 +18,13 @@ class ScrollMessageBox(QtWidgets.QMessageBox):
         self.copy_button = QtWidgets.QPushButton('copy text')
         self.copy_button.clicked.connect(self.text_to_clipboard)
 
-        self.setButtonText(1, 'Close')
+        if buttons_and_roles:
+            for label, role in buttons_and_roles:
+                role = role or QtWidgets.QMessageBox.NoRole
+                button = self.addButton(label, role)
+                button.clicked.connect(partial(self.setResult, role))
+        else:
+            self.setButtonText(1, 'Close')
 
         cols = self.layout().columnCount()
         self.layout().addWidget(self.text_edit, 0, 0, 1, cols)
@@ -33,11 +42,19 @@ class ScrollMessageBox(QtWidgets.QMessageBox):
 
 if __name__ == '__main__':
     import sys
+
+    def exec_box():
+        buttons = (
+            ('Yes', QtWidgets.QMessageBox.YesRole),
+            ('No', QtWidgets.QMessageBox.NoRole))
+        s = ScrollMessageBox(
+            text='content' + '\n1\n2\n3' * 20, title='test', parent=w,
+            buttons_and_roles=buttons)
+        print(s.exec_())
+
     app = QtWidgets.QApplication(sys.argv)
     w = QtWidgets.QWidget()
-    s = ScrollMessageBox(
-        text='content' + '\n1\n2\n3' * 20, title='test', parent=w)
-    b = QtWidgets.QPushButton('show', clicked=s.exec_)
+    b = QtWidgets.QPushButton('show', clicked=exec_box)
     ly = QtWidgets.QVBoxLayout(w)
     ly.addWidget(b)
     w.show()
