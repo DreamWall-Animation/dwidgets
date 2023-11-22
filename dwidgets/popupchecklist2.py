@@ -390,8 +390,8 @@ class PopupCheckListButton2(QtWidgets.QWidget):
                 action.triggered.connect(partial(self.set_preset, name))
                 self.presets_menu.addAction(action)
 
-        point = self.presets_dropdown.rect().bottomLeft()
-        point = self.presets_dropdown.mapToGlobal(point)
+        point = self.button.rect().bottomLeft()
+        point = self.button.mapToGlobal(point)
         self.presets_menu.exec_(point)
 
     def set_preset(self, name):
