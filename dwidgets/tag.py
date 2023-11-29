@@ -11,7 +11,8 @@ DEFAULT_TEXT_STYLE = (
 
 
 class TagView(QtWidgets.QWidget):
-    edited = QtCore.Signal()
+    removed = QtCore.Signal(list)
+    added = QtCore.Signal(list)
 
     def __init__(
             self,
@@ -99,19 +100,19 @@ class TagView(QtWidgets.QWidget):
         self.repaint()
 
     def pop(self, index):
-        self._tags.pop(index)
+        removed_tag = self._tags.pop(index)
         self.tags = self._tags
-        self.edited.emit()
+        self.removed.emit([removed_tag])
 
     def append(self, tag):
         self._tags.append(tag)
         self.tags = self._tags
-        self.edited.emit()
+        self.added.emit([tag])
 
     def extend(self, tags):
         self._tags.extend(tags)
         self.tags = self._tags
-        self.edited.emit()
+        self.added.emit(tags)
 
     @property
     def tags(self):
