@@ -96,14 +96,19 @@ class ListWidgetForCheckboxes(QtWidgets.QListView):
 class PopupCheckList(QtWidgets.QMenu):
 
     def __init__(
-            self, items, selection_limit=None, size=None, parent=None):
+            self,
+            items=None,
+            selection_limit=None,
+            model=None,
+            size=None,
+            parent=None):
         super().__init__(parent, Qt.Popup | Qt.FramelessWindowHint)
         if size:
             self.setFixedSize(size)
 
         self.search = QtWidgets.QLineEdit()
         self.search.textEdited.connect(self.research)
-        self.model = PopupCheckListModel(items, selection_limit)
+        self.model = model or PopupCheckListModel(items, selection_limit)
         self.proxy = PopupCheckListProxyModel()
         self.proxy.setSourceModel(self.model)
         self.list = QtWidgets.QListView()
@@ -303,6 +308,14 @@ class PopupCheckListButton2(QtWidgets.QWidget):
             presets_button_id=None, restore_states=True, default=False,
             save_unchecked_values=False, parent=None):
         super().__init__(parent)
+        self.menu_width = None
+
+        self.model = PopupCheckListModel(
+            items=items, selection_limit=selection_limit)
+        self.model.checked_items_changed.connect(self._set_text)
+        self.model.checked_items_changed.connect(self.save_states)
+        self.model.checked_items_changed.connect(
+            self.checked_items_changed.emit)
 
         self.presets = Presets(presets_path) if presets_path else None
         self.presets_button_id = presets_button_id
@@ -311,14 +324,7 @@ class PopupCheckListButton2(QtWidgets.QWidget):
 
         self.presets_menu = None
 
-        self.menu = PopupCheckList(
-            items=items,
-            selection_limit=selection_limit,
-            parent=self)
-        self.menu.model.checked_items_changed.connect(self._set_text)
-        self.menu.model.checked_items_changed.connect(self.save_states)
-        self.menu.model.checked_items_changed.connect(
-            self.checked_items_changed.emit)
+        self.menu = None
         self.included_title = included_title
 
         self.button = QtWidgets.QPushButton()
@@ -334,24 +340,24 @@ class PopupCheckListButton2(QtWidgets.QWidget):
         if allow_save_presets:
             layout.addWidget(self.presets_dropdown)
 
-        self.set_items = self.menu.model.set_items
-        self.set_checked_data = self.menu.model.set_checked_data
-        self.checked_labels = self.menu.model.checked_labels
-        self.checked_data = self.menu.model.checked_data
-        self.all_checked = self.menu.model.has_filter_activated
-        self.check_all = self.menu.model.check_all
-        self.uncheck_all = partial(self.menu.model.check_all, False)
-        self.invert = self.menu.model.invert
+        self.set_items = self.model.set_items
+        self.set_checked_data = self.model.set_checked_data
+        self.checked_labels = self.model.checked_labels
+        self.checked_data = self.model.checked_data
+        self.all_checked = self.model.has_filter_activated
+        self.check_all = self.model.check_all
+        self.uncheck_all = partial(self.model.check_all, False)
+        self.invert = self.model.invert
 
         if self.presets and restore_states:
             states = self.presets.get_states(self.presets_button_id)
             if states is not None:
-                self.menu.model.set_checked_data(
+                self.model.set_checked_data(
                     states, self.save_unchecked_states)
             else:
-                self.menu.model.check_all(default)
+                self.model.check_all(default)
         else:
-            self.menu.model.check_all(default)
+            self.model.check_all(default)
 
         self._set_text()
 
@@ -359,11 +365,17 @@ class PopupCheckListButton2(QtWidgets.QWidget):
         if not self.presets:
             return
         if self.save_unchecked_states:
-            data = self.menu.model.unchecked_data()
+            data = self.model.unchecked_data()
         self.presets.save_states(self.presets_button_id, data)
 
     def popup(self):
         position = self.mapToGlobal(self.rect().bottomLeft())
+        if self.menu is None:
+            self.menu = PopupCheckList(
+                model=self.model,
+                parent=self)
+            if self.menu_width:
+                self.menu.setFixedWidth(self.menu_width)
         self.menu.popup(position)
         move_widget_in_screen(self.menu)
 
@@ -371,17 +383,17 @@ class PopupCheckListButton2(QtWidgets.QWidget):
         if self.static_title:
             self.button.setText(self.included_title or EMPTY_LABEL)
             return
-        labels = self.menu.model.checked_labels()
+        labels = self.model.checked_labels()
         text = get_multiple_selection_text(
-            labels, self.menu.model.rowCount(), self.included_title)
+            labels, self.model.rowCount(), self.included_title)
         self.button.setText(text)
 
     def mousePressEvent(self, event):
         if event.type() == QtCore.QEvent.MouseButtonPress:
             if event.button() == Qt.MiddleButton:
-                self.menu.model.check_all(False)
+                self.model.check_all(False)
             elif event.button() == Qt.RightButton:
-                self.menu.model.invert()
+                self.model.invert()
         return super().mousePressEvent(event)
 
     def execute_preset_menu(self):
@@ -408,9 +420,9 @@ class PopupCheckListButton2(QtWidgets.QWidget):
 
     def set_preset(self, name):
         data = self.presets.get_preset(self.presets_button_id, name)
-        self.menu.model.set_checked_data(data)
+        self.model.set_checked_data(data)
         self.save_states(data)
-        self.checked_items_changed.emit(self.menu.model.checked_data())
+        self.checked_items_changed.emit(self.model.checked_data())
 
     def save_preset(self):
         name, result = QtWidgets.QInputDialog.getText(self, 'Preset Name', '')
@@ -418,7 +430,7 @@ class PopupCheckListButton2(QtWidgets.QWidget):
             return
         self.presets.save_preset(
             self.presets_button_id, name,
-            self.menu.model.checked_data())
+            self.model.checked_data())
 
     def remove_preset(self):
         names = self.presets.list_available_presets(self.presets_button_id)
@@ -428,7 +440,7 @@ class PopupCheckListButton2(QtWidgets.QWidget):
         self.presets.remove_preset(self.presets_button_id, diag.preset_name)
 
     def setFixedWidth(self, width):
-        self.menu.setFixedWidth(width)
+        self.menu_width = width
         super().setFixedWidth(width)
 
 
