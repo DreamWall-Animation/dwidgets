@@ -515,7 +515,7 @@ def _sanity_weights(weights, graduation):
     if graduation is not None and len(weights) > graduation:
         msg = 'Weights number cant be longer than graduation.'
         raise ValueError(msg)
-    if to_ratios(weights)[-1] != 1.0 or sum(weights) != 1:
+    if to_ratios(weights)[-1] != 1.0 or (1 - sum(weights) > .0000002):
         raise ValueError(
             'Sum of weigths has to be equal to 1.0 but is '
             f'{sum(weights)} ({weights})')

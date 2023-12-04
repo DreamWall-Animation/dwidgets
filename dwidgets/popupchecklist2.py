@@ -373,6 +373,7 @@ class PopupCheckListButton2(QtWidgets.QWidget):
         if self.menu is None:
             self.menu = PopupCheckList(
                 model=self.model,
+                selection_limit=self.model.selection_limit,
                 parent=self)
             if self.menu_width:
                 self.menu.setFixedWidth(self.menu_width)
