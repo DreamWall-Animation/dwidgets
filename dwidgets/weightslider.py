@@ -498,10 +498,8 @@ def _ensure_weights_precisions(weights):
         return []
     total = sum(weights)
     diff = 1 - total
-    print(abs(diff))
-    if 0 < abs(diff) < 0.000001:
+    if 0 < abs(diff) < 0.00002:
         weights[0] += diff
-        print('last_weight_modified', diff, sum(weights))
     return weights
 
 
