@@ -127,6 +127,7 @@ class WeightSlider(QtWidgets.QWidget):
         self._step_indexes = []
         self._handeling_index = None
         self._drag_index = None
+        self._index_middle_clicked = None
         self._pressed_button = None
 
         self.border_color = BORDER_COLOR
@@ -310,6 +311,8 @@ class WeightSlider(QtWidgets.QWidget):
         rects = [grow_rect(r, -3) for r in rects]  # Safe zone
         if self._dragable:
             self._drag_index = point_hover_rects(rects, point)
+        if self._pressed_button == QtCore.Qt.MiddleButton:
+            self._index_middle_clicked = point_hover_rects(rects, point)
 
     def ballons_visible(self):
         return (
@@ -348,9 +351,9 @@ class WeightSlider(QtWidgets.QWidget):
                 return
             self.context_menu.exec_(self.mapToGlobal(event.pos()))
         elif event.button() == QtCore.Qt.MiddleButton:
-            if self._drag_index is not None:
-                self.remove_weight(self._drag_index)
-                self._drag_index = None
+            if self._index_middle_clicked is not None:
+                self.remove_weight(self._index_middle_clicked)
+                self._index_middle_clicked = None
 
     def mouseMoveEvent(self, event):
         button = QtCore.Qt.LeftButton
