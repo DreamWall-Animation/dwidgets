@@ -272,6 +272,16 @@ class PopupCheckListModel(QtCore.QAbstractListModel):
         else:
             self.checked = [
                 item_data not in data for (_, item_data) in self.items]
+
+        # Restore a selection history if a limit has been set.
+        if self.selection_limit is not None:
+            checked_indexes = [
+                i for i, s in enumerate(self.checked) if s is True]
+            checked_indexes = checked_indexes[-self.selection_limit:]
+            self.checked = [
+                i in checked_indexes for i in range(len(self.items))]
+            self.selection_history = checked_indexes
+
         self.layoutChanged.emit()
 
     def checked_data(self):
