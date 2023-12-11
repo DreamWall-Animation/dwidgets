@@ -64,7 +64,6 @@ class Presets:
         button_data = presets.setdefault(button_id, {'presets': {}})
         button_data['states'] = states
         with open(self.json_path, 'w') as f:
-            print('Save states', states)
             return json.dump(presets, f, indent=4)
 
     def get_states(self, button_id):
