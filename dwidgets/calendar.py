@@ -36,7 +36,7 @@ class CalendarDialog(QtWidgets.QDialog):
     @property
     def date(self):
         return self.calendar.selectedDate()
-    
+
     def showEvent(self, event) -> None:
         move_widget_in_screen(self)
         return super().showEvent(event)
@@ -45,19 +45,22 @@ class CalendarDialog(QtWidgets.QDialog):
 class DatePickerButton(QtWidgets.QPushButton):
     date_changed = QtCore.Signal()
 
-    def __init__(self, label, *args, **kwargs):
+    def __init__(self, label, time=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.default_label = label
         self.setText(f' {self.default_label} (off) ')
         self.clicked.connect(self.pop)
-
+        self.displaytime = time
+        self.date = None
         self.first_date = None
         self.last_date = None
 
         # Menu
         self.dates_menu = QtWidgets.QMenu()
         self.calendar = QtWidgets.QCalendarWidget()
+        self.time = QtWidgets.QTimeEdit()
+
         cancel_button = QtWidgets.QPushButton(' Cancel ')
         cancel_button.clicked.connect(self.dates_menu.close)
         reset_button = QtWidgets.QPushButton(' Reset ')
@@ -65,15 +68,16 @@ class DatePickerButton(QtWidgets.QPushButton):
         validate_button = QtWidgets.QPushButton(' Confirm ')
         validate_button.clicked.connect(self.set_dates)
 
-        layout = QtWidgets.QVBoxLayout(self.dates_menu)
-
-        layout.addWidget(self.calendar)
-
         buttons_layout = QtWidgets.QHBoxLayout()
         buttons_layout.addStretch()
         buttons_layout.addWidget(cancel_button)
         buttons_layout.addWidget(reset_button)
         buttons_layout.addWidget(validate_button)
+
+        layout = QtWidgets.QVBoxLayout(self.dates_menu)
+        layout.addWidget(self.calendar)
+        if self.displaytime:
+            layout.addWidget(self.time)
         layout.addLayout(buttons_layout)
 
     def pop(self):
@@ -88,13 +92,25 @@ class DatePickerButton(QtWidgets.QPushButton):
 
     def set_dates(self):
         self.date = self.calendar.selectedDate().toPython()
-        self.setText(f'{self.default_label} ({self.date:%d/%m/%Y})')
+        if self.displaytime:
+            time = f'{self.datetime:%d/%m/%Y %Hh%M}'
+        else:
+            time = f'{self.date:%d/%m/%Y}'
+        self.setText(f'{self.default_label} ({time})')
         self.date_changed.emit()
         self.dates_menu.close()
 
     @property
     def dates(self):
         return self.first_date, self.last_date
+
+    @property
+    def datetime(self):
+        if not self.date:
+            return None
+        return datetime.datetime(
+            self.date.year, self.date.month, self.date.day,
+            self.time.time().hour(), self.time.time().minute())
 
     def mousePressEvent(self, event):
         if event.type() == QtCore.QEvent.MouseButtonPress:
