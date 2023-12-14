@@ -177,9 +177,9 @@ class PopupCheckListProxyModel(QtCore.QSortFilterProxyModel):
 
     def filterAcceptsRow(self, source_row, _):
         model = self.sourceModel()
-        label = model.items[source_row][0]
+        label = model.items[source_row][0].lower()
         return all(
-            n in label for m in self._text_filter.split(',')
+            n in label for m in self._text_filter.lower().split(',')
             for n in m.split(' '))
 
     def set_text_filter(self, text):
