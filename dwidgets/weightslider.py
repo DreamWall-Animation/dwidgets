@@ -699,12 +699,14 @@ def draw_ballons(
         else:
             bg_color = QtGui.QColor(0, 0, 0, 0)
             border_color = QtGui.QColor(empty_border_color)
-            border_color.setAlpha(50)
+            border_color.setAlpha(133)
 
+        painter.setCompositionMode(QtGui.QPainter.CompositionMode_Difference)
         painter.setBrush(bg_color)
         pen.setColor(border_color)
         painter.setPen(pen)
         painter.drawPath(get_comment_path(center, scale))
+        painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceOver)
 
 
 def compute_ballon_scale(rect):
