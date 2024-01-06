@@ -1,4 +1,4 @@
-
+import itertools
 from random import randint
 
 
@@ -6,9 +6,11 @@ DEFAULT_OUTPUT_HEIGHT = 15
 FORKS_PADDING = 30
 FORKS_WIDTH = 30
 FORKS_XRADIUS = 5
-OUTPUT_WIDTH = FORKS_PADDING + 20
+OUTPUT_WIDTH = 10
+OUTPUT_WIDTH_EXPANDED = 80
 OUTPUT_ARROW_RADIUS = 4
 DEFAULT_COLUMN_WIDTH = 125
+TABLE_MINIMUM_WIDTH = 60
 DEFAULT_ROW_SPACING = 0
 TOP_RESIZER_HEIGHT = 25
 LEFT_RESIZER_WIDTH = 15
@@ -16,23 +18,63 @@ MINIUM_COLUMN_WIDTH = 30
 MINIUM_ROW_HEIGHT = 10
 MAXIMUM_ROW_HEIGHT = 150
 TOTAL_WIDTH = 60
-GRADUATION_HEIGHT = 25
+GRADUATION_HEIGHT = 18
+DEFAULT_SETTINGS = {
+    'display_output_type': False,
+    'header_width': 200,
+    'display_keys': False,
+    'hidden_keywords': []
+}
+COLORS = (
+    '#FDBCB4',
+    '#F7CDC9',
+    '#FFF8E8',
+    '#B3CCE8',
+    '#749AD6',
+    '#536CB0',
+    '#B8C3D3',
+    '#CEDABF',
+    '#E1C1D0',
+    '#EFD1CD',
+    '#FDECCE',
+    '#91EBE8',
+    '#C2F7EB',
+    '#EAFAF9',
+    '#C1EDFA',
+    '#AEE5FA',
+    '#A0D4F8',
+    '#C6DFC8',
+    '#FFF3DE',
+    '#F6D5C2',
+    '#FFADBB',
+    '#D39CB6'
+)
 
 
-def sum_float1(value, suffix, _):
+def sum_float1(value, suffix, _, __, ___):
     return f'{round(value, 1)}{suffix}'
 
 
-def sum_float2(value, suffix, _):
+def sum_float2(value, suffix, _, __, ___):
     return f'{round(value, 2)}{suffix}'
 
 
-def percent(value, suffix, maximum):
+def max_percent(value, suffix, _, maximum, __):
     return f'{round((value / maximum) * 100, 1)}{suffix}'
 
 
+def total_percent(value, suffix, _, __, total):
+    return f'{round((value / total) * 100, 1)}{suffix}'
+
+
+def output_percent(value, suffix, output_total, *_):
+    return f'{round((value / output_total) * 100, 1)}{suffix}'
+
+
 FORMATTERS = {
-    'Percent': percent,
+    'Percent on max': max_percent,
+    'Percent on total': total_percent,
+    'Percent on output': output_percent,
     'Sum as float 1': sum_float1,
     'Sum as float 2': sum_float2,
 }
@@ -46,6 +88,12 @@ class AbstractSettings:
     """
     def __init__(self):
         self.data = []
+
+    def from_list(self, data):
+        self.data = data
+
+    def set_data(self, data):
+        self.data = data
 
     def __bool__(self):
         return True
@@ -76,10 +124,8 @@ class DephSettings(AbstractSettings):
     """
     def _populate_missing_settings(self, index):
         if index >= len(self.data):
-            for row in range(len(self.data), index + 1):
+            for _ in range(len(self.data), index + 1):
                 self.data.append({
-                    'header': str(row),
-                    'width': DEFAULT_COLUMN_WIDTH,
                     'spacing': DEFAULT_ROW_SPACING,
                     'fork_spacing': 0})
 
@@ -104,6 +150,7 @@ class ColorsSettings(AbstractSettings):
 
     def __init__(self):
         self.data = {}
+        self.generator = itertools.cycle(COLORS)
 
     def _populate_missing_settings(self, color_type):
         self.data.setdefault(color_type, {})
@@ -111,8 +158,37 @@ class ColorsSettings(AbstractSettings):
     def __getitem__(self, index_key):
         color_type, key = index_key
         self._populate_missing_settings(color_type)
-        return self.data[color_type].setdefault(key, random_color())
+        return self.data[color_type].setdefault(key, next(self.generator))
 
 
-def random_color():
-    return f'#{randint(0, 255):02X}{randint(0, 255):02X}{randint(0, 255):02X}'
+_settings = {}
+
+
+def get_settings():
+    default = DEFAULT_SETTINGS.copy()
+    default.update(_settings)
+    _settings.update(default)
+    return _settings
+
+
+def set_settings(settings):
+    global _settings
+    _settings = settings
+
+
+def set_setting(key, value):
+    if key not in DEFAULT_SETTINGS:
+        raise ValueError(f'"{key}" setting does not exists.')
+    _settings[key] = value
+
+
+def get_setting(key):
+    if key not in DEFAULT_SETTINGS:
+        raise ValueError(f'"{key}" setting does not exists.')
+    return _settings.setdefault(key, DEFAULT_SETTINGS[key])
+
+
+def get_output_width():
+    if not get_setting('display_output_type'):
+        return OUTPUT_WIDTH
+    return OUTPUT_WIDTH_EXPANDED

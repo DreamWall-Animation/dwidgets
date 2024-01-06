@@ -18,13 +18,18 @@ class ChartModel:
     def __init__(self):
         self.schema = None
         self.tree = None
+        self.all_entries = None
         self.entries = None
         self.deph = 0
         self.nodes = []
         self.outputs = {}
+        self.filters = []
 
     def is_empty(self):
         return not bool(self.tree) or not bool(self.tree.children())
+
+    def values_for_key(self, key):
+        return sorted({e.data.get(key) for e in self.entries})
 
     def list_common_keys(self):
         if not self.entries:
@@ -49,8 +54,16 @@ class ChartModel:
         if self.entries is not None:
             self.build_tree()
 
-    def set_entries(self, entries):
-        self.entries = entries
+    def filtered_entries(self):
+        if self.filters:
+            return [
+                e for e in self.all_entries
+                if all(f.filter(e) for f in self.filters)]
+        return self.all_entries[:]
+
+    def set_entries(self, entries=None):
+        self.all_entries = entries or self.all_entries
+        self.entries = self.filtered_entries()
         if self.schema is not None:
             self.build_tree()
             return
@@ -70,6 +83,10 @@ class ChartModel:
             if node.level == level:
                 node.expanded = state
 
+    def expand_hierarchy(self, node, state):
+        for node in node.flat():
+            node.expanded = state
+
     def maximum(self):
         return max((
             sum(self.entries[i].weight for i in o.all_indexes())
@@ -82,6 +99,14 @@ class ChartModel:
         return max(
             output.parent.level for output in self.outputs.values()
             if output.is_expanded())
+
+    def add_filter(self, filter):
+        self.filters.append(filter)
+        self.set_entries()
+
+    def clear_filters(self):
+        self.filters = []
+        self.set_entries()
 
 
 class ChartOutput:
@@ -132,6 +157,27 @@ class ChartOutput:
             parents.append(node.parent)
             node = node.parent
         return sorted(parents, key=lambda n: n.level)
+
+
+class ChartFilter:
+    def __init__(self, key, operator, values):
+        self.key = key
+        self.operator = operator
+        self.values = values
+
+    @staticmethod
+    def deserialize(data):
+        return ChartFilter(data['key'], data['operator'], data['values'])
+
+    def serialize(self):
+        return {
+            'key': self.key, 'operator': self.operator, 'values': self.values}
+
+    def filter(self, chart):
+        if self.operator == 'in':
+            return chart.data[self.key] in self.values
+        if self.operator == 'not in':
+            return chart.data[self.key] not in self.values
 
 
 class ChartNode:
@@ -250,13 +296,8 @@ def schema_to_tree(schema):
     outputs = {}
     for branch in branches:
         node = root
-        # if isinstance(branch, list):
-        #     for key in branch:
-        #         node = node.child(key, key, branch, path=branch)
-        #         nodes[node.index] = node
-        #     continue
         for key in branch[:-1]:
-            node = node.child(key, key, branch, path=branch)
+            node = node.child(key, key, branch[:-1], path=branch)
             nodes[node.index] = node
         output = node.append(branch[-1], branch[-1], None)
         outputs[output.index] = output
@@ -297,7 +338,7 @@ def hierarchize(entries, schema):
             targets = [entry.data[value] for value in branch]
             node = root
             for target, key in zip(targets[:-1], branch[:-1]):
-                node = node.child(target, key, branch, path=targets)
+                node = node.child(target, key, branch[:-1], path=targets)
                 nodes[node.index] = node
             output = node.append(branch[-1], targets[-1], index)
             outputs[output.index] = output

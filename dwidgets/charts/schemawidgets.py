@@ -1,5 +1,6 @@
 from PySide2 import QtCore, QtGui, QtWidgets
 from dwidgets.charts.model import tree_to_schema, schema_to_tree, ChartNode
+from dwidgets.charts.settings import get_setting, set_setting
 
 
 ROW_HEIGHT = 20
@@ -27,15 +28,16 @@ class SchemaEditor(QtWidgets.QWidget):
         keywords.addWidget(self.key_list)
 
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(group)
         layout.addWidget(self.scroll)
         layout.addWidget(self.apply)
         layout.addStretch(1)
 
+        self.branch_settings = self.tree_view.branch_settings
         self.set_words = self.key_list.set_words
         self.set_schema = self.tree_view.set_schema
         self.get_schema = self.tree_view.get_schema
+        self.is_valid = self.tree_view.is_valid
 
     def apply_clicked(self):
         self.tree_view.apply()
@@ -48,10 +50,11 @@ class KeyList(QtWidgets.QWidget):
         self.setMouseTracking(True)
         self.words = []
         self.words_rects = {}
+        self.option_rect = None
 
     def set_words(self, words):
         self.words = words
-        self.compute_rects
+        self.compute_rects()
 
     def mouseMoveEvent(self, _):
         self.repaint()
@@ -66,10 +69,25 @@ class KeyList(QtWidgets.QWidget):
                 drag.setHotSpot(event.pos())
                 drag.exec_()
 
+    def mouseReleaseEvent(self, event):
+        conditions = (
+            event.button() == QtCore.Qt.LeftButton and
+            self.option_rect.contains(event.pos()))
+        if not conditions:
+            return
+
+        diag = EditHiddenKeyWords(self.words)
+        diag.words_changed.connect(self.compute_rects)
+        diag.words_changed.connect(self.repaint)
+        diag.exec_()
+
     def compute_rects(self):
         top = 0
         left = 0
+        self.words_rects = {}
         for word in self.words:
+            if word in get_setting('hidden_keywords'):
+                continue
             static = QtGui.QStaticText(word)
             width = static.size().width() + (TEXT_MARGIN * 2)
             if left != 0 and left + width > self.width():
@@ -78,7 +96,9 @@ class KeyList(QtWidgets.QWidget):
             rect = QtCore.QRect(left, top, width, ROW_HEIGHT)
             self.words_rects[word] = rect
             left += rect.width()
-        self.setFixedHeight(rect.bottom() if self.words else ROW_HEIGHT)
+        self.setFixedHeight(rect.bottom() + 7 if self.words else ROW_HEIGHT)
+        self.option_rect = QtCore.QRect(
+            self.rect().width() - 21, self.rect().bottom() - 21, 20, 20)
 
     def resizeEvent(self, _):
         self.compute_rects()
@@ -89,14 +109,81 @@ class KeyList(QtWidgets.QWidget):
         option.setAlignment(QtCore.Qt.AlignCenter)
         cursor = self.mapFromGlobal(QtGui.QCursor.pos())
         for word in self.words:
+            if word in get_setting('hidden_keywords'):
+                continue
             rect = self.words_rects[word]
             if rect.contains(cursor):
                 painter.drawRect(rect)
             painter.drawText(rect, word, option)
+        if self.option_rect:
+            if self.option_rect.contains(cursor):
+                painter.drawRect(self.option_rect)
+            painter.drawText(self.option_rect, '⚙', option)
+
+
+class EditHiddenKeyWords(QtWidgets.QDialog):
+    words_changed = QtCore.Signal()
+
+    def __init__(self, current_words, parent=None):
+        super().__init__(parent)
+
+        self.current_words = QtWidgets.QListWidget()
+        self.current_words.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection)
+        for current_word in current_words:
+            item = QtWidgets.QListWidgetItem(current_word)
+            self.current_words.addItem(item)
+        self.hidden_words = QtWidgets.QListWidget()
+        self.hidden_words.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection)
+        for word in get_setting('hidden_keywords'):
+            item = QtWidgets.QListWidgetItem(word)
+            self.hidden_words.addItem(item)
+
+        add = QtWidgets.QPushButton('hidden word')
+        add.released.connect(self.call_add)
+        remove = QtWidgets.QPushButton('remove hidden word')
+        remove.released.connect(self.call_remove)
+
+        lists = QtWidgets.QGridLayout()
+        lists.addWidget(QtWidgets.QLabel('Keywords'), 0, 0)
+        lists.addWidget(QtWidgets.QLabel('Hidden keyworkds'), 0, 1)
+        lists.addWidget(self.current_words, 0, 0)
+        lists.addWidget(self.hidden_words, 0, 1)
+
+        buttons = QtWidgets.QHBoxLayout()
+        buttons.addStretch()
+        buttons.addWidget(add)
+        buttons.addWidget(remove)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addLayout(lists)
+        layout.addLayout(buttons)
+
+    def call_add(self):
+        words = [i.text() for i in self.current_words.selectedItems()]
+        hidden = sorted({*(get_setting('hidden_keywords') + words)})
+        set_setting('hidden_keywords', hidden)
+        self.words_changed.emit()
+        self.update_list()
+
+    def update_list(self):
+        self.hidden_words.clear()
+        for word in get_setting('hidden_keywords'):
+            item = QtWidgets.QListWidgetItem(word)
+            self.hidden_words.addItem(item)
+
+    def call_remove(self):
+        words = [i.text() for i in self.hidden_words.selectedItems()]
+        hidden = sorted(
+            {w for w in get_setting('hidden_keywords') if w not in words})
+        set_setting('hidden_keywords', hidden)
+        self.words_changed.emit()
+        self.update_list()
 
 
 class SchemaTreeView(QtWidgets.QWidget):
-    settings_edit = QtCore.Signal(str)
+    branch_settings = QtCore.Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -231,7 +318,7 @@ class SchemaTreeView(QtWidgets.QWidget):
                 continue
             if get_settings_rect(rect).contains(event.pos()):
                 output = self.outputs[index]
-                self.settings_edit.emit(output.branch())
+                self.branch_settings.emit(output.branch())
                 return
             if get_delete_rect(rect).contains(event.pos()):
                 output = self.outputs[index]
@@ -256,6 +343,10 @@ class SchemaTreeView(QtWidgets.QWidget):
             for output in node.outputs():
                 print(output)
 
+    def is_valid(self):
+        return all(
+            bool(node.outputs()) for node in self.tree.flat() if node.level)
+
     def get_schema(self):
         return tree_to_schema(self.tree)
 
@@ -279,6 +370,17 @@ class SchemaTreeView(QtWidgets.QWidget):
             painter.drawRect(text_rect)
             text_rect.setLeft(text_rect.left() + TEXT_MARGIN)
             painter.drawText(text_rect, node.key, option)
+            if not node.outputs():
+                brush = QtGui.QBrush()
+                brush.setStyle(QtCore.Qt.BDiagPattern)
+                color = QtGui.QColor('orange')
+                color.setAlpha(122)
+                brush.setColor(color)
+                painter.setBrush(brush)
+                painter.setPen(QtCore.Qt.NoPen)
+                painter.drawRect(text_rect)
+                painter.setPen(QtGui.QPen())
+                painter.setBrush(QtGui.QBrush())
             if rect.contains(cursor):
                 delete_rect = get_delete_rect(rect)
                 painter.drawRect(delete_rect)
