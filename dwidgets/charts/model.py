@@ -29,11 +29,11 @@ class ChartModel:
         return not bool(self.tree) or not bool(self.tree.children())
 
     def values_for_key(self, key):
-        return sorted({e.data.get(key) for e in self.entries})
+        return sorted({str(e.data.get(key)) for e in self.entries})
 
     def list_common_keys(self):
         if not self.entries:
-            return None
+            return []
         if len(self.entries) == 1:
             return self.entires[0].data.keys()
         return sorted(set(
@@ -64,9 +64,13 @@ class ChartModel:
     def set_entries(self, entries=None):
         self.all_entries = entries or self.all_entries
         self.entries = self.filtered_entries()
-        if self.schema is not None:
-            self.build_tree()
-            return
+        try:
+            if self.schema is not None:
+                self.build_tree()
+                return True
+        except KeyError:
+            return False
+        return True
 
     def list_branches(self):
         return sorted({o.branch() for o in self.outputs.values()})
@@ -102,6 +106,14 @@ class ChartModel:
 
     def add_filter(self, filter):
         self.filters.append(filter)
+        self.set_entries()
+
+    def remove_filter(self, index):
+        del self.filters[index]
+        self.set_entries()
+
+    def replace_filter(self, index, filter):
+        self.filters[index] = filter
         self.set_entries()
 
     def clear_filters(self):

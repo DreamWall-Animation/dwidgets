@@ -3,8 +3,8 @@ from PySide2 import QtWidgets, QtCore, QtGui
 from dwidgets.charts.dialog import ChartDetails
 from dwidgets.charts.model import ChartModel
 from dwidgets.charts.settings import (
-    BranchSettings, DephSettings, ColorsSettings, get_setting, set_setting,
-    get_output_width, OUTPUT_ARROW_RADIUS, TABLE_MINIMUM_WIDTH,
+    ChartViewContext, sort_elements,
+    OUTPUT_ARROW_RADIUS, TABLE_MINIMUM_WIDTH,
     TOP_RESIZER_HEIGHT, FORMATTERS, GRADUATION_HEIGHT,
     LEFT_RESIZER_WIDTH, MINIUM_COLUMN_WIDTH, MINIUM_ROW_HEIGHT,
     FORKS_PADDING, FORKS_WIDTH, FORKS_XRADIUS, TOTAL_WIDTH)
@@ -15,15 +15,11 @@ class ChartView(QtWidgets.QWidget):
 
     def __init__(
             self,
-            branch_settings=None,
-            deph_settings=None,
-            colors_settings=None,
+            context=None,
             parent=None):
         super().__init__(parent)
         self.model = ChartModel()
-        self.branch_settings = branch_settings or BranchSettings()
-        self.deph_settings = deph_settings or DephSettings()
-        self.colors_settings = colors_settings or ColorsSettings()
+        self.context = context or ChartViewContext()
         self.setMouseTracking(True)
         self.header_rects = {}
         self.fork_rects = {}
@@ -139,9 +135,9 @@ class ChartView(QtWidgets.QWidget):
                     value = sum(
                         self.model.entries[i].weight
                         for i in output.content[key])
-
-                    formatter = self.branch_settings[output.branch(), 'formatter']
-                    suffix = self.branch_settings[output.branch(), 'value_suffix']
+                    branches = self.context.branch_settings
+                    formatter = branches[output.branch(), 'formatter']
+                    suffix = branches[output.branch(), 'value_suffix']
                     formatter = FORMATTERS[formatter]
                     value = formatter(
                         data['value'],
@@ -149,7 +145,8 @@ class ChartView(QtWidgets.QWidget):
                         data['output_total'],
                         data['maximum'],
                         self.model.total())
-                    self.setToolTip(f'{key} | {value}')
+                    key_text = self.context.translation_settings['value', key]
+                    self.setToolTip(f'{key_text} | {value}')
                     return {
                         'type': 'chart',
                         'node': output,
@@ -164,7 +161,7 @@ class ChartView(QtWidgets.QWidget):
         if action['type'] == 'horizontal_resize':
             rect = self.resizer_rect
             width = pos.x() - rect.left()
-            set_setting('header_width', max((width, MINIUM_COLUMN_WIDTH)))
+            self.context.set_setting('header_width', max((width, MINIUM_COLUMN_WIDTH)))
             self.compute_rects()
             return
         if action['type'] == 'vertical_resize':
@@ -172,7 +169,7 @@ class ChartView(QtWidgets.QWidget):
             bottom = max((pos.y(), rect.top() + MINIUM_ROW_HEIGHT))
             height = bottom - rect.top()
             branch = action['branch']
-            self.branch_settings[branch, 'height'] = height
+            self.context.branch_settings[branch, 'height'] = height
             self.compute_rects()
             return
         if action['type'] == 'toggle':
@@ -221,7 +218,7 @@ class ChartView(QtWidgets.QWidget):
         self.output_rects = {}
         self.header_rects = {}
         self.fork_rects = {}
-        width = get_setting('header_width') - LEFT_RESIZER_WIDTH
+        width = self.context.get_setting('header_width') - LEFT_RESIZER_WIDTH
         self.resizer_rect = QtCore.QRect(
             LEFT_RESIZER_WIDTH, 0, width, TOP_RESIZER_HEIGHT)
         self.chart_rects = defaultdict(dict)
@@ -232,15 +229,24 @@ class ChartView(QtWidgets.QWidget):
         self.settings_changed.emit()
         self.repaint()
 
+    def get_output_spacing(self, parents, new_parents):
+        for deph, (p1, p2) in enumerate(zip(parents, new_parents)):
+            if p1 != p2:
+                return self.context.deph_settings[deph, 'spacing']
+        if len(parents) != len(new_parents):
+            deph = min((len(parents), len(new_parents)))
+            return self.context.deph_settings[deph - 1, 'fork_spacing']
+
     def compute_outputs(self):
         top = TOP_RESIZER_HEIGHT
-        left = LEFT_RESIZER_WIDTH + get_setting('header_width')
+        left = LEFT_RESIZER_WIDTH + self.context.get_setting('header_width')
         outputs = [o for o in self.model.tree.all_outputs() if o.is_expanded()]
         parents = []
 
         self.navigation_slider.rect = QtCore.QRect(
-            left + get_output_width(), 0,
-            self.rect().width() - left - get_output_width() - TOTAL_WIDTH,
+            left + self.context.get_output_width(), 0,
+            self.rect().width() - left - self.context.get_output_width() -
+            TOTAL_WIDTH,
             TOP_RESIZER_HEIGHT)
 
         for output in outputs:
@@ -248,30 +254,29 @@ class ChartView(QtWidgets.QWidget):
                 continue
             new_parents = output.parents()
             if parents:
-                for deph, (p1, p2) in enumerate(zip(parents, new_parents)):
-                    if p1 != p2:
-                        top += self.deph_settings[deph, 'spacing']
-                        break
-                else:
-                    if len(parents) != len(new_parents):
-                        deph = min((len(parents), len(new_parents)))
-                        top += self.deph_settings[deph - 1, 'fork_spacing']
+                top += self.get_output_spacing(parents, new_parents)
             parents = new_parents
-            height = self.branch_settings[output.branch(), 'height']
-            rect = QtCore.QRect(left, top, get_output_width(), height)
+            height = self.context.branch_settings[output.branch(), 'height']
+            width = self.context.get_output_width()
+            rect = QtCore.QRect(left, top, width, height)
             self.output_rects[output.index] = rect
             top += height
+
         height = max(self.output_rects[o.index].bottom() for o in outputs)
         height += GRADUATION_HEIGHT
         self.setFixedHeight(max((height, self.parent().height())))
+
         minimum_width = (
             LEFT_RESIZER_WIDTH +
-            get_setting('header_width') +
-            get_output_width() +
+            self.context.get_setting('header_width') +
+            self.context.get_output_width() +
             TOTAL_WIDTH +
             TABLE_MINIMUM_WIDTH)
+
         self.setMinimumWidth(minimum_width)
-        self.parent().parent().setMinimumWidth(minimum_width + 50)
+        parent = self.parent().parent()
+        if parent:
+            parent.setMinimumWidth(minimum_width + 50)
 
     def get_tree_nodes_rects(self, vp_rect):
         header_rects = {}
@@ -297,16 +302,7 @@ class ChartView(QtWidgets.QWidget):
                 return header_rects, fork_rects
 
             if node.index not in self.header_rects:
-                outputs = node.outputs()
-                bot = max(
-                    (self.output_rects[o.index].bottom() for o in outputs),
-                    default=0)
-                height = bot - top
-                width = get_setting('header_width') - left
-                rect = QtCore.QRect(left, top, width, height)
-                if node.parent.is_fork():
-                    rect.setLeft(rect.left() + FORKS_PADDING)
-                self.header_rects[node.index] = rect
+                self.build_header_rect(node, left, top)
             header_rects[node.index] = self.header_rects[node.index]
 
             if not node.is_fork():
@@ -323,12 +319,24 @@ class ChartView(QtWidgets.QWidget):
                 for o in node.outputs())
             height = bot - top
             left = LEFT_RESIZER_WIDTH + (FORKS_WIDTH * (node.level - 1))
-            width = min((FORKS_WIDTH, get_setting('header_width')))
+            width = min((FORKS_WIDTH, self.context.get_setting('header_width')))
             fork_rect = QtCore.QRect(
                 left, top, width, height)
             self.fork_rects[node.index] = fork_rect
             fork_rects[node.index] = fork_rect
         return header_rects, fork_rects
+
+    def build_header_rect(self, node, left, top):
+        outputs = node.outputs()
+        bot = max(
+            (self.output_rects[o.index].bottom() for o in outputs),
+            default=0)
+        height = bot - top
+        width = self.context.get_setting('header_width') - left
+        rect = QtCore.QRect(left, top, width, height)
+        if node.parent.is_fork():
+            rect.setLeft(rect.left() + FORKS_PADDING)
+        self.header_rects[node.index] = rect
 
     def get_body(self, vp_rect):
         maximum = self.model.maximum()
@@ -350,50 +358,62 @@ class ChartView(QtWidgets.QWidget):
             if skip:
                 continue
             left = start_left
-            top = (
-                self.output_rects[output.index].top() +
-                self.branch_settings[output.branch(), 'top_padding'])
-            height = (
-                self.output_rects[output.index].height() -
-                self.branch_settings[output.branch(), 'top_padding'] -
-                self.branch_settings[output.branch(), 'bottom_padding'])
+            rect = self.output_rects[output.index]
+            branch = output.branch()
+            top, height = get_output_top_height(self.context, branch, rect)
+
             if index not in self.chart_rects:
-                keys = sorted(output.content.keys(), key=lambda x: str(x))
-                if not keys:
-                    continue
-                total = sum(
-                    self.model.entries[i].weight
-                    for key in keys for i in output.content[key])
-                for key in keys:
-                    value = sum(
-                        self.model.entries[i].weight
-                        for i in output.content[key])
-                    factor = value / maximum
-                    width = (body_width * factor) * slider_factor
-                    if left > vp_rect.right() or left + width < left_limit:
-                        left += width
-                        continue
-                    rect = QtCore.QRectF(left, top, width, height)
-                    rect.setLeft(max((left, left_limit)))
-                    right = min((rect.right(), vp_rect.right() - TOTAL_WIDTH))
-                    rect.setRight(right)
-                    if rect.width() == 0:
-                        continue
-                    self.chart_rects[output.index][key] = {
-                        'rect': rect, 'value': value, 'maximum': maximum,
-                        'output_total': total}
-                    left += rect.width()
-                if left + TOTAL_WIDTH > vp_rect.right() - TOTAL_WIDTH:
-                    left = vp_rect.right() - TOTAL_WIDTH
-                total_data = {
-                    'rect': QtCore.QRect(left, top, TOTAL_WIDTH, height),
-                    'value': total,
-                    'output_total': total,
-                    'maximum': maximum}
-                self.total_rects[output.index] = total_data
+                self.build_output_chart_rects(
+                    vp_rect, maximum, left_limit,
+                    body_width, slider_factor,
+                    output, left, top, height)
             total_rects[output.index] = self.total_rects[output.index]
             chart_rects[output.index] = self.chart_rects[output.index]
         return chart_rects, total_rects
+
+    def build_output_chart_rects(
+            self, vp_rect, maximum, left_limit, body_width, slider_factor,
+            output, left, top, height):
+
+        keys = sorted(output.content.keys(), key=lambda x: str(x))
+        if not keys:
+            return
+
+        total = sum(
+            self.model.entries[i].weight
+            for key in keys for i in output.content[key])
+
+        schema = self.context.sorting_settings['value', output.key]
+        keys = sort_elements(schema, keys)
+        for key in keys:
+            value = sum(
+                self.model.entries[i].weight
+                for i in output.content[key])
+            factor = value / maximum
+            width = (body_width * factor) * slider_factor
+            if left > vp_rect.right() or left + width < left_limit:
+                left += width
+                continue
+            rect = QtCore.QRectF(left, top, width, height)
+            rect.setLeft(max((left, left_limit)))
+            right = min((rect.right(), vp_rect.right() - TOTAL_WIDTH))
+            rect.setRight(right)
+            if rect.width() == 0:
+                continue
+            self.chart_rects[output.index][key] = {
+                        'rect': rect, 'value': value, 'maximum': maximum,
+                        'output_total': total}
+            left += rect.width()
+
+        # Fix total rect left to the right band.
+        if left + TOTAL_WIDTH > vp_rect.right() - TOTAL_WIDTH:
+            left = vp_rect.right() - TOTAL_WIDTH
+
+        self.total_rects[output.index] = {
+            'rect': QtCore.QRect(left, top, TOTAL_WIDTH, height),
+            'value': total,
+            'output_total': total,
+            'maximum': maximum}
 
     def mouseDoubleClickEvent(self, event):
         if self.detect_hovered_action(event.pos())['type'] == 'navigation':
@@ -411,7 +431,7 @@ class ChartView(QtWidgets.QWidget):
     def paint_headers(self, painter, header_rects, text_option):
         for index, rect in header_rects.items():
             node = self.model.nodes[index]
-            color = self.colors_settings['key', node.key]
+            color = self.context.colors_settings['key', node.key]
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(QtGui.QColor(color))
             painter.drawRoundedRect(rect, FORKS_XRADIUS, FORKS_XRADIUS)
@@ -419,7 +439,9 @@ class ChartView(QtWidgets.QWidget):
             if node.is_fork():
                 rect = QtCore.QRect(rect)
                 rect.setLeft(rect.left() + FORKS_WIDTH)
-            text = f'{node.key}:{node.value}' if get_setting('display_keys') else f'{node.value}'
+            k = self.context.translation_settings['key', node.key]
+            v = self.context.translation_settings['value', node.value]
+            text = f'{k}:{v}' if self.context.get_setting('display_keys') else f'{v}'
             painter.drawText(rect, text, text_option)
 
     def map_to_visible_region(self, shape, source=None):
@@ -538,12 +560,12 @@ class ChartView(QtWidgets.QWidget):
             if check_rect.top() > event.rect().bottom():
                 continue
             output = self.model.outputs[index]
-            formatter = self.branch_settings[output.branch(), 'formatter']
-            suffix = self.branch_settings[output.branch(), 'value_suffix']
+            formatter = self.context.branch_settings[output.branch(), 'formatter']
+            suffix = self.context.branch_settings[output.branch(), 'value_suffix']
             formatter = FORMATTERS[formatter]
             for key, data in content_rects.items():
                 rect = data['rect']
-                color = self.colors_settings['value', key]
+                color = self.context.colors_settings['value', key]
                 painter.setPen(QtCore.Qt.NoPen)
                 painter.setBrush(QtGui.QColor(color))
                 painter.drawRect(rect)
@@ -554,7 +576,8 @@ class ChartView(QtWidgets.QWidget):
                     data['output_total'],
                     data['maximum'],
                     total)
-                text = f'{key} | {value}'
+                k = self.context.translation_settings['value', key]
+                text = f'{k} | {value}'
                 s = QtGui.QStaticText(text).size()
                 if s.width() < rect.width() and s.height() < rect.height():
                     painter.drawText(rect, text, option)
@@ -614,8 +637,9 @@ class ChartView(QtWidgets.QWidget):
                 rect.center().y() - ts.height(),
                 rect.right() - (OUTPUT_ARROW_RADIUS * 2) - left,
                 ts.height())
+            text = self.context.translation_settings['key', output.key]
             if ts.width() < trect.width():
-                painter.drawText(trect, str(output.key), option)
+                painter.drawText(trect, text, option)
             painter.setBrush(QtGui.QBrush())
             top = rect.bottom()
             painter.setPen(QtCore.Qt.gray)
@@ -787,3 +811,9 @@ def tree_node_left(node):
         return LEFT_RESIZER_WIDTH
     level = node.level - 2
     return LEFT_RESIZER_WIDTH + (FORKS_WIDTH * level)
+
+
+def get_output_top_height(context, branch, rect):
+    tpadding = context.branch_settings[branch, 'top_padding']
+    bpadding = context.branch_settings[branch, 'bottom_padding']
+    return rect.top() + tpadding, rect.height() - tpadding - bpadding

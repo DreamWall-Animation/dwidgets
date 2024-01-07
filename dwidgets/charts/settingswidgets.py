@@ -4,7 +4,6 @@ from PySide2 import QtWidgets, QtCore, QtGui
 from dwidgets.popupchecklist2 import PopupCheckListButton2
 from dwidgets.charts.model import ChartFilter
 from dwidgets.charts.settings import (
-    DephSettings, get_setting, set_setting,
     MAXIMUM_ROW_HEIGHT, MINIUM_ROW_HEIGHT, FORMATTERS)
 
 
@@ -48,12 +47,12 @@ class SliderDelegate(QtWidgets.QItemDelegate):
 class DephTableModel(QtCore.QAbstractTableModel):
     geometries_edited = QtCore.Signal()
 
-    def __init__(self, deph_settings=None, parent=None):
+    def __init__(self, context=None, parent=None):
         super().__init__(parent)
-        self.deph_settings = deph_settings or DephSettings()
+        self.context = context
 
     def rowCount(self, *_):
-        return len(self.deph_settings) - 1
+        return len(self.context.deph_settings) - 1
 
     def columnCount(self, *_):
         return 2
@@ -69,7 +68,7 @@ class DephTableModel(QtCore.QAbstractTableModel):
             return False
         key = ('spacing', 'fork_spacing')[index.column()]
         self.layoutAboutToBeChanged.emit()
-        self.deph_settings[index.row() + 1, key] = value
+        self.context.deph_settings[index.row() + 1, key] = value
         self.geometries_edited.emit()
         self.layoutChanged.emit()
         return True
@@ -89,9 +88,9 @@ class DephTableModel(QtCore.QAbstractTableModel):
         roles = (QtCore.Qt.DisplayRole, QtCore.Qt.UserRole, QtCore.Qt.EditRole)
         if role in roles:
             if index.column() == 0:
-                return self.deph_settings[index.row() + 1, 'spacing']
+                return self.context.deph_settings[index.row() + 1, 'spacing']
             if index.column() == 1:
-                return self.deph_settings[index.row() + 1, 'fork_spacing']
+                return self.context.deph_settings[index.row() + 1, 'fork_spacing']
 
 
 class BranchSettingDialog(QtWidgets.QDialog):
@@ -163,14 +162,14 @@ class BranchSettingDialog(QtWidgets.QDialog):
 
 
 class ColorsSettingsEditor(QtWidgets.QWidget):
-    def __init__(self, colors_settings=None, parent=None):
+    def __init__(self, context=None, parent=None):
         super().__init__(parent)
-        self.colors_settings = colors_settings
+        self.setMinimumHeight(250)
+        self.context = context
         self.tree = QtWidgets.QTreeWidget()
         self.tree.header().hide()
         self.tree.doubleClicked.connect(self.double_clicked)
         layout = QtWidgets.QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.tree)
 
     def double_clicked(self, index):
@@ -182,11 +181,11 @@ class ColorsSettingsEditor(QtWidgets.QWidget):
         color = color.name()
         item.setIcon(0, get_square_icon(color))
         item.setData(0, QtCore.Qt.UserRole, (key, value, color))
-        self.colors_settings[key, value] = color
+        self.context.colors_settings[key, value] = color
 
     def fill(self):
         self.tree.clear()
-        for key, colors in self.colors_settings.data.items():
+        for key, colors in self.context.colors_settings.data.items():
             root = QtWidgets.QTreeWidgetItem()
             root.setFlags(QtCore.Qt.ItemIsEnabled)
             root.setText(0, key)
@@ -211,10 +210,13 @@ TEMPLATE = """
 class FiltersWidget(QtWidgets.QWidget):
     filters_edited = QtCore.Signal()
 
-    def __init__(self, model=None, parent=None):
+    def __init__(self, model=None, context=None, parent=None):
         super().__init__(parent)
         self.model = model
+        self.context = context
         self.list = FiltersListWidget(model)
+        self.list.remove_filter.connect(self.call_remove_filter)
+        self.list.edit_filter.connect(self.call_edit_filter)
         self.add_filter = QtWidgets.QPushButton('Add filter')
         self.add_filter.released.connect(self.call_add_filter)
         self.clear = QtWidgets.QPushButton('Clear')
@@ -236,47 +238,83 @@ class FiltersWidget(QtWidgets.QWidget):
         self.list.repaint()
 
     def call_add_filter(self):
-        diag = AddFilterDialog(self.model, self)
-        if diag.exec_():
-            self.model.add_filter(diag.filter())
-            self.filters_edited.emit()
-            self.list.repaint()
+        diag = AddEditFilterDialog(self.model, self.context, parent=self)
+        diag.show()
+        diag.filter_added.connect(self.do_add_filter)
+        point = self.list.mapToGlobal(self.list.rect().bottomLeft())
+        point.setY(point.y() + 2)
+        diag.move(point)
+
+    def call_edit_filter(self, index):
+        diag = AddEditFilterDialog(
+            self.model, self.context,
+            filter=self.model.filters[index], parent=self)
+        diag.show()
+        diag.filter_added.connect(partial(self.do_edit_filter, index))
+        point = self.list.mapToGlobal(self.list.rect().bottomLeft())
+        point.setY(point.y() + 2)
+        diag.move(point)
+
+    def do_add_filter(self, filter):
+        self.model.add_filter(filter)
+        self.filters_edited.emit()
+        self.list.repaint()
+
+    def do_edit_filter(self, index, filter):
+        self.model.replace_filter(index, filter)
+        self.filters_edited.emit()
+        self.list.repaint()
 
     def set_model(self, model):
         self.model = model
         self.list.model = model
         self.list.repaint()
 
+    def call_remove_filter(self, index):
+        self.model.remove_filter(index)
+        self.filters_edited.emit()
+        self.list.repaint()
 
-class AddFilterDialog(QtWidgets.QDialog):
-    def __init__(self, model, parent=None):
+
+class AddEditFilterDialog(QtWidgets.QWidget):
+    filter_added = QtCore.Signal(object)
+
+    def __init__(self, model, context, filter=None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Add Filter')
+        self.setWindowFlags(QtCore.Qt.Popup | QtCore.Qt.FramelessWindowHint)
         self.model = model
+        self.context = context
         self.keys = QtWidgets.QComboBox()
-        self.keys.addItems(model.list_common_keys())
+        items = [
+            i for i in model.list_common_keys()
+            if i not in self.context.get_setting('hidden_keywords')]
+        self.keys.addItems(items)
         self.keys.currentTextChanged.connect(self.fill_values)
         self.operators = QtWidgets.QComboBox()
         self.operators.addItems(['in', 'not in'])
         self.values = PopupCheckListButton2()
-
-        add = QtWidgets.QPushButton('Add')
+        add = QtWidgets.QPushButton('Add' if filter is None else 'Edit')
         add.released.connect(self.accept)
 
-        hlayout = QtWidgets.QHBoxLayout()
-        hlayout.setContentsMargins(0, 0, 0, 0)
-        hlayout.addWidget(self.keys)
-        hlayout.addWidget(self.operators)
-        hlayout.addWidget(self.values)
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.keys)
+        layout.addWidget(self.operators)
+        layout.addWidget(self.values)
+        layout.addWidget(add)
 
-        but_layout = QtWidgets.QHBoxLayout()
-        but_layout.setContentsMargins(0, 0, 0, 0)
-        but_layout.addStretch(1)
-        but_layout.addWidget(add)
+        if filter is not None:
+            self.set_filter(filter)
 
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(hlayout)
-        layout.addLayout(but_layout)
+    def set_filter(self, filter):
+        self.keys.setCurrentText(filter.key)
+        self.operators.setCurrentText(filter.operator)
+        self.fill_values()
+        self.values.set_checked_data(filter.values)
+
+    def accept(self):
+        self.filter_added.emit(self.filter())
+        self.close()
 
     def fill_values(self):
         values = self.model.values_for_key(self.keys.currentText())
@@ -290,14 +328,43 @@ class AddFilterDialog(QtWidgets.QDialog):
 
 
 class FiltersListWidget(QtWidgets.QWidget):
+    remove_filter = QtCore.Signal(int)
+    edit_filter = QtCore.Signal(int)
+
     def __init__(self, model=None, parent=None):
         super().__init__(parent)
+        self.setMouseTracking(True)
         self.model = model
         self.setMinimumHeight(30)
 
     def set_model(self, model):
         self.model = model
         self.repaint()
+
+    def mouseMoveEvent(self, _):
+        self.repaint()
+
+    def mouseReleaseEvent(self, _):
+        cursor = self.mapFromGlobal(QtGui.QCursor.pos())
+        top = 5
+        for i, filter in enumerate(self.model.filters):
+            values = ', '.join(str(v) for v in filter.values[:5])
+            if len(filter.values) > 5:
+                values += f'... (and {len(filter.values)} more)'
+            text = TEMPLATE.format(
+                key=filter.key, operator=filter.operator, values=values)
+            static_text = QtGui.QStaticText(text)
+            static_text.setTextWidth(self.rect().width() - 10)
+            rect = QtCore.QRect(
+                0, top - 2, self.rect().width(),
+                static_text.size().height() + 5)
+            top += static_text.size().height() + 5
+            if rect.contains(cursor):
+                close_rect = QtCore.QRect(
+                    rect.right() - 16, rect.top(), 15, 15)
+                if close_rect.contains(cursor):
+                    return self.remove_filter.emit(i)
+                return self.edit_filter.emit(i)
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
@@ -308,6 +375,9 @@ class FiltersListWidget(QtWidgets.QWidget):
         painter.drawRect(rect)
         alternate_row_color = QtGui.QColor('black')
         alternate_row_color.setAlpha(35)
+        cursor = self.mapFromGlobal(QtGui.QCursor.pos())
+        option = QtGui.QTextOption()
+        option.setAlignment(QtCore.Qt.AlignCenter)
         for i, filter in enumerate(self.model.filters):
             values = ', '.join(str(v) for v in filter.values[:5])
             if len(filter.values) > 5:
@@ -316,10 +386,10 @@ class FiltersListWidget(QtWidgets.QWidget):
                 key=filter.key, operator=filter.operator, values=values)
             static_text = QtGui.QStaticText(text)
             static_text.setTextWidth(event.rect().width() - 10)
+            rect = QtCore.QRect(
+                0, top - 2, event.rect().width(),
+                static_text.size().height() + 5)
             if i % 2 != 0:
-                rect = QtCore.QRect(
-                    0, top - 2, event.rect().width(),
-                    static_text.size().height() + 5)
                 painter.setBrush(alternate_row_color)
                 painter.setPen(QtCore.Qt.NoPen)
                 painter.drawRect(rect)
@@ -327,6 +397,11 @@ class FiltersListWidget(QtWidgets.QWidget):
                 painter.setPen(QtGui.QPen())
             painter.drawStaticText(5, top, static_text)
             top += static_text.size().height() + 5
+            if rect.contains(cursor):
+                close_rect = QtCore.QRect(
+                    rect.right() - 16, rect.top(), 15, 15)
+                painter.drawRect(close_rect)
+                painter.drawText(close_rect, '✘', option)
         self.setFixedHeight(max((30, top + 5)))
         painter.end()
 
@@ -335,15 +410,17 @@ class ChartSettings(QtWidgets.QWidget):
     geometries_edited = QtCore.Signal()
     setting_edited = QtCore.Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, context, parent=None):
         super().__init__(parent)
+        self.context = context
 
         self.display_output_type = QtWidgets.QCheckBox('Display output types')
-        self.display_output_type.setChecked(get_setting('display_output_type'))
+        value = self.context.get_setting('display_output_type')
+        self.display_output_type.setChecked(value)
         mtd = partial(self.update_settings, True)
         self.display_output_type.released.connect(mtd)
         self.display_keys = QtWidgets.QCheckBox('Display key')
-        self.display_keys.setChecked(get_setting('display_keys'))
+        self.display_keys.setChecked(self.context.get_setting('display_keys'))
         self.display_keys.released.connect(self.update_settings)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -352,8 +429,8 @@ class ChartSettings(QtWidgets.QWidget):
 
     def update_settings(self, edit_geometries=False):
         value = self.display_output_type.isChecked()
-        set_setting('display_output_type', value)
-        set_setting('display_keys', self.display_keys.isChecked())
+        self.context.set_setting('display_output_type', value)
+        self.context.set_setting('display_keys', self.display_keys.isChecked())
         if edit_geometries:
             self.geometries_edited.emit()
         else:
@@ -393,6 +470,195 @@ class ErasePreset(QtWidgets.QDialog):
         layout.addWidget(self.rename)
         layout.addWidget(self.name)
         layout.addLayout(but_layout)
+
+
+class DephSettingsEditor(QtWidgets.QWidget):
+    def __init__(self, context, parent=None):
+        super().__init__(parent=parent)
+
+        self.context = context
+        self.deph_settings_model = DephTableModel(self.context)
+        self.geometries_edited = self.deph_settings_model.geometries_edited
+        self.slider_delegate = SliderDelegate(self.deph_settings_model)
+
+        self.deph_settings_table = QtWidgets.QTableView()
+        self.deph_settings_table.setItemDelegateForColumn(
+            0, self.slider_delegate)
+        self.deph_settings_table.setItemDelegateForColumn(
+            1, self.slider_delegate)
+        self.deph_settings_table.setModel(self.deph_settings_model)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(self.deph_settings_table)
+
+
+class DictionnariesEditor(QtWidgets.QWidget):
+    translation_edited = QtCore.Signal()
+
+    def __init__(self, model, translation_settings, parent=None):
+        super().__init__(parent)
+        self.key_dict = DictionnaryEditor(
+            'key', translation_settings, completer=model.list_common_keys)
+        self.key_dict.model.translation_edited.connect(
+            self.translation_edited.emit)
+        self.value_dict = DictionnaryEditor('value', translation_settings)
+        self.value_dict.model.translation_edited.connect(
+            self.translation_edited.emit)
+        tab = QtWidgets.QTabWidget()
+        tab.addTab(self.key_dict, 'Keywords')
+        tab.addTab(self.value_dict, 'Values')
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.addWidget(tab)
+
+    def set_model(self, model):
+        self.key_dict.completer = model.list_common_keys
+
+    def update(self):
+        self.key_dict.model.layoutChanged.emit()
+        self.value_dict.model.layoutChanged.emit()
+
+
+class DictionnaryEditor(QtWidgets.QWidget):
+    translation_edited = QtCore.Signal()
+
+    def __init__(self, key, translation_settings, completer=None, parent=None):
+        super().__init__(parent)
+        self.setMinimumHeight(300)
+        self.key = key
+        self.completer = completer
+        self.translation_settings = translation_settings
+        self.model = DictionnaryTableModel(key, translation_settings)
+        self.model.translation_edited.connect(self.translation_edited.emit)
+        self.table = QtWidgets.QTableView()
+        self.table.verticalHeader().hide()
+        self.table.setAlternatingRowColors(True)
+        mode = QtWidgets.QAbstractItemView.ExtendedSelection
+        self.table.setSelectionMode(mode)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.table.setModel(self.model)
+        add = QtWidgets.QPushButton('Add')
+        add.released.connect(self.call_add)
+        remove = QtWidgets.QPushButton('Remove')
+        remove.released.connect(self.call_remove)
+
+        buttons = QtWidgets.QHBoxLayout()
+        buttons.setContentsMargins(0, 0, 0, 0)
+        buttons.addStretch()
+        buttons.addWidget(add)
+        buttons.addWidget(remove)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(self.table)
+        layout.addLayout(buttons)
+
+    def call_remove(self):
+        indexes = self.table.selectionModel().selectedIndexes()
+        rows = sorted({i.row() for i in indexes})
+        self.model.deleted_rows(rows)
+
+    def call_add(self):
+        completion = self.completer() if self.completer else None
+        dialog = AddTranslationDialog(completion, self)
+        dialog.show()
+        dialog.translation_add.connect(self.add_translation)
+        point = self.table.mapToGlobal(self.table.rect().bottomLeft())
+        point.setY(point.y() + 2)
+        dialog.move(point)
+
+    def add_translation(self, data, display):
+        self.context.translation_settings[self.key, data] = display
+        self.model.layoutChanged.emit()
+        self.model.translation_edited.emit()
+
+
+class AddTranslationDialog(QtWidgets.QWidget):
+    translation_add = QtCore.Signal(str, str)
+
+    def __init__(self, completion=None, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(QtCore.Qt.Popup | QtCore.Qt.FramelessWindowHint)
+        self.data = QtWidgets.QLineEdit()
+        if completion:
+            self.data.setCompleter(QtWidgets.QCompleter(completion))
+        self.display = QtWidgets.QLineEdit()
+        self.data.returnPressed.connect(self.call_add)
+        self.display.returnPressed.connect(self.call_add)
+        add = QtWidgets.QPushButton('Add')
+        add.released.connect(self.call_add)
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.data)
+        layout.addWidget(self.display)
+        layout.addWidget(add)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.data.setFocus(QtCore.Qt.MouseFocusReason)
+
+    def call_add(self):
+        self.translation_add.emit(self.data.text(), self.display.text())
+        self.close()
+
+
+class DictionnaryTableModel(QtCore.QAbstractTableModel):
+    translation_edited = QtCore.Signal()
+
+    def __init__(self, key, context):
+        super().__init__()
+        self.key = key
+        self.context = context
+
+    def rowCount(self, *_):
+        try:
+            return len(self.context.translation_settings.data[self.key])
+        except KeyError:  # No entry already recorded
+            return 0
+
+    def columnCount(self, *_):
+        return 2
+
+    def deleted_rows(self, rows):
+        self.layoutAboutToBeChanged.emit()
+        dict_keys = sorted(self.context.translation_settings.data[self.key].keys())
+        dict_keys = [dict_keys[r] for r in rows]
+        for dict_key in dict_keys:
+            del self.context.translation_settings.data[self.key][dict_key]
+        self.layoutChanged.emit()
+        self.translation_edited.emit()
+
+    def headerData(self, section, orientation, role):
+        if role != QtCore.Qt.DisplayRole:
+            return
+        if orientation == QtCore.Qt.Horizontal:
+            return ('Data', 'Display')[section]
+
+    def flags(self, index):
+        flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+        if index.column() == 0:
+            return flags
+        return flags | QtCore.Qt.ItemIsEditable
+
+    def setData(self, index, value, role):
+        if role != QtCore.Qt.EditRole:
+            return False
+        dict_keys = sorted(
+            self.context.translation_settings.data[self.key].keys())
+        dict_key = dict_keys[index.row()]
+        self.context.translation_settings[self.key, dict_key] = value
+        self.translation_edited.emit()
+        return True
+
+    def data(self, index, role):
+        if role not in (QtCore.Qt.DisplayRole, QtCore.Qt.EditRole):
+            return
+
+        dict_keys = sorted(
+            self.context.translation_settings.data[self.key].keys())
+        dict_key = dict_keys[index.row()]
+        if index.column() == 0:
+            return dict_key
+        return self.context.translation_settings[self.key, dict_key]
 
 
 @lru_cache()

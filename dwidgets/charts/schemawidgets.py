@@ -1,6 +1,5 @@
 from PySide2 import QtCore, QtGui, QtWidgets
 from dwidgets.charts.model import tree_to_schema, schema_to_tree, ChartNode
-from dwidgets.charts.settings import get_setting, set_setting
 
 
 ROW_HEIGHT = 20
@@ -11,11 +10,12 @@ TEXT_MARGIN = 10
 class SchemaEditor(QtWidgets.QWidget):
     schema_edited = QtCore.Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, context, parent=None):
         super().__init__(parent)
-        self.key_list = KeyList()
-        self.tree_view = SchemaTreeView()
+        self.key_list = KeyList(context)
+        self.tree_view = SchemaTreeView(context)
         self.scroll = QtWidgets.QScrollArea()
+        self.scroll.setMinimumHeight(100)
         self.scroll.verticalScrollBar().valueChanged.connect(
             self.tree_view.repaint)
         self.scroll.setWidget(self.tree_view)
@@ -45,8 +45,9 @@ class SchemaEditor(QtWidgets.QWidget):
 
 
 class KeyList(QtWidgets.QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, context, parent=None):
         super().__init__(parent)
+        self.context = context
         self.setMouseTracking(True)
         self.words = []
         self.words_rects = {}
@@ -76,7 +77,7 @@ class KeyList(QtWidgets.QWidget):
         if not conditions:
             return
 
-        diag = EditHiddenKeyWords(self.words)
+        diag = EditHiddenKeyWords(self.words, self.context)
         diag.words_changed.connect(self.compute_rects)
         diag.words_changed.connect(self.repaint)
         diag.exec_()
@@ -86,9 +87,10 @@ class KeyList(QtWidgets.QWidget):
         left = 0
         self.words_rects = {}
         for word in self.words:
-            if word in get_setting('hidden_keywords'):
+            if word in self.context.get_setting('hidden_keywords'):
                 continue
-            static = QtGui.QStaticText(word)
+            text = self.context.translation_settings['key', word]
+            static = QtGui.QStaticText(text)
             width = static.size().width() + (TEXT_MARGIN * 2)
             if left != 0 and left + width > self.width():
                 left = 0
@@ -109,12 +111,13 @@ class KeyList(QtWidgets.QWidget):
         option.setAlignment(QtCore.Qt.AlignCenter)
         cursor = self.mapFromGlobal(QtGui.QCursor.pos())
         for word in self.words:
-            if word in get_setting('hidden_keywords'):
+            if word in self.context.get_setting('hidden_keywords'):
                 continue
             rect = self.words_rects[word]
             if rect.contains(cursor):
                 painter.drawRect(rect)
-            painter.drawText(rect, word, option)
+            text = self.context.translation_settings['key', word]
+            painter.drawText(rect, text, option)
         if self.option_rect:
             if self.option_rect.contains(cursor):
                 painter.drawRect(self.option_rect)
@@ -124,60 +127,76 @@ class KeyList(QtWidgets.QWidget):
 class EditHiddenKeyWords(QtWidgets.QDialog):
     words_changed = QtCore.Signal()
 
-    def __init__(self, current_words, parent=None):
+    def __init__(self, current_words, context, parent=None):
         super().__init__(parent)
-
+        self.words = current_words
+        self.context = context
         self.current_words = QtWidgets.QListWidget()
         self.current_words.setSelectionMode(
             QtWidgets.QAbstractItemView.ExtendedSelection)
         for current_word in current_words:
+            if current_word in self.context.get_setting('hidden_keywords'):
+                continue
             item = QtWidgets.QListWidgetItem(current_word)
+            item.setData(QtCore.Qt.UserRole, current_word)
+            text = self.context.translation_settings['key', current_word]
+            item.setText(text)
             self.current_words.addItem(item)
         self.hidden_words = QtWidgets.QListWidget()
         self.hidden_words.setSelectionMode(
             QtWidgets.QAbstractItemView.ExtendedSelection)
-        for word in get_setting('hidden_keywords'):
+        for word in self.context.get_setting('hidden_keywords'):
             item = QtWidgets.QListWidgetItem(word)
+            item.setData(QtCore.Qt.UserRole, word)
+            item.setText(self.context.translation_settings['key', word])
             self.hidden_words.addItem(item)
 
-        add = QtWidgets.QPushButton('hidden word')
+        add = QtWidgets.QPushButton('Hide words ->')
         add.released.connect(self.call_add)
-        remove = QtWidgets.QPushButton('remove hidden word')
+        remove = QtWidgets.QPushButton('<- Show words')
         remove.released.connect(self.call_remove)
 
-        lists = QtWidgets.QGridLayout()
+        lists = QtWidgets.QGridLayout(self)
         lists.addWidget(QtWidgets.QLabel('Keywords'), 0, 0)
         lists.addWidget(QtWidgets.QLabel('Hidden keyworkds'), 0, 1)
-        lists.addWidget(self.current_words, 0, 0)
-        lists.addWidget(self.hidden_words, 0, 1)
-
-        buttons = QtWidgets.QHBoxLayout()
-        buttons.addStretch()
-        buttons.addWidget(add)
-        buttons.addWidget(remove)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addLayout(lists)
-        layout.addLayout(buttons)
+        lists.addWidget(self.current_words, 1, 0)
+        lists.addWidget(self.hidden_words, 1, 1)
+        lists.addWidget(add, 2, 0)
+        lists.addWidget(remove, 2, 1)
 
     def call_add(self):
-        words = [i.text() for i in self.current_words.selectedItems()]
-        hidden = sorted({*(get_setting('hidden_keywords') + words)})
-        set_setting('hidden_keywords', hidden)
+        words = [
+            i.data(QtCore.Qt.UserRole)
+            for i in self.current_words.selectedItems()]
+        h = sorted({*(self.context.get_setting('hidden_keywords') + words)})
+        self.context.set_setting('hidden_keywords', h)
         self.words_changed.emit()
         self.update_list()
 
     def update_list(self):
         self.hidden_words.clear()
-        for word in get_setting('hidden_keywords'):
+        self.current_words.clear()
+        for cw in self.words:
+            if cw in self.context.get_setting('hidden_keywords'):
+                continue
+            item = QtWidgets.QListWidgetItem(cw)
+            item.setData(QtCore.Qt.UserRole, cw)
+            item.setText(self.context.translation_settings['key', cw])
+            self.current_words.addItem(item)
+        for word in self.context.get_setting('hidden_keywords'):
             item = QtWidgets.QListWidgetItem(word)
+            item.setData(QtCore.Qt.UserRole, word)
+            item.setText(self.context.translation_settings['key', word])
             self.hidden_words.addItem(item)
 
     def call_remove(self):
-        words = [i.text() for i in self.hidden_words.selectedItems()]
-        hidden = sorted(
-            {w for w in get_setting('hidden_keywords') if w not in words})
-        set_setting('hidden_keywords', hidden)
+        words = [
+            i.data(QtCore.Qt.UserRole)
+            for i in self.hidden_words.selectedItems()]
+        hidden = sorted({
+            w for w in self.context.get_setting('hidden_keywords')
+            if w not in words})
+        self.context.set_setting('hidden_keywords', hidden)
         self.words_changed.emit()
         self.update_list()
 
@@ -185,8 +204,9 @@ class EditHiddenKeyWords(QtWidgets.QDialog):
 class SchemaTreeView(QtWidgets.QWidget):
     branch_settings = QtCore.Signal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, context, parent=None):
         super().__init__(parent)
+        self.context = context
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
         self.tree = ChartNode()
@@ -369,7 +389,8 @@ class SchemaTreeView(QtWidgets.QWidget):
                 left, rect.top(), rect.width() - left, rect.height())
             painter.drawRect(text_rect)
             text_rect.setLeft(text_rect.left() + TEXT_MARGIN)
-            painter.drawText(text_rect, node.key, option)
+            text = self.context.translation_settings['key', node.key]
+            painter.drawText(text_rect, text, option)
             if not node.outputs():
                 brush = QtGui.QBrush()
                 brush.setStyle(QtCore.Qt.BDiagPattern)
@@ -394,7 +415,8 @@ class SchemaTreeView(QtWidgets.QWidget):
                 left, rect.top(), rect.width() - left, rect.height())
             painter.drawRect(text_rect)
             text_rect.setLeft(text_rect.left() + TEXT_MARGIN)
-            painter.drawText(text_rect, node.key, option)
+            text = self.context.translation_settings['key', node.key]
+            painter.drawText(text_rect, text, option)
             if rect.contains(cursor):
                 delete_rect = get_delete_rect(rect)
                 painter.drawRect(delete_rect)
@@ -404,7 +426,9 @@ class SchemaTreeView(QtWidgets.QWidget):
                 painter.drawText(settings_rect, '⚙', option2)
 
         if self.highlight is not None:
-            rect = self.node_rects.get(self.highlight) or self.output_rects.get(self.highlight)
+            rect = (
+                self.node_rects.get(self.highlight) or
+                self.output_rects.get(self.highlight))
             color = QtGui.QColor(QtCore.Qt.yellow)
             color.setAlpha(150)
             painter.setPen(QtCore.Qt.NoPen)

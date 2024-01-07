@@ -6,48 +6,49 @@ import shutil
 from functools import partial
 from PySide2 import QtWidgets, QtCore
 from dwidgets.charts.model import ChartModel, ChartFilter
-from dwidgets.charts.settings import (
-    BranchSettings, DephSettings, ColorsSettings,
-    get_settings, set_settings)
+from dwidgets.charts.settings import ChartViewContext
 from dwidgets.charts.chartview import ChartView
 from dwidgets.charts.schemawidgets import SchemaEditor
 from dwidgets.charts.settingswidgets import (
-    BranchSettingDialog, ChartSettings, ColorsSettingsEditor, DephTableModel,
-    ErasePreset, FiltersWidget, SliderDelegate, WidgetToggler)
+    BranchSettingDialog, ChartSettings, ColorsSettingsEditor,
+    DephSettingsEditor, DictionnariesEditor, ErasePreset, FiltersWidget,
+    WidgetToggler)
 
 
 class ChartWidget(QtWidgets.QWidget):
-    def __init__(self, preset_file_path=None, parent=None):
+    def __init__(self, preset_file_path=None, editor=False, parent=None):
         super().__init__(parent)
         self.preset_file_path = preset_file_path
-        self.branch_settings = BranchSettings()
-        self.deph_settings = DephSettings()
-        self.colors_settings = ColorsSettings()
+        self.context = ChartViewContext()
 
-        self.presets_bar = QtWidgets.QToolBar()
-        action = QtWidgets.QAction('Preset', self)
-        action.triggered.connect(self.exec_preset_menu)
-        self.presets_bar.addAction(action)
-        self.chart = ChartView(
-            branch_settings=self.branch_settings,
-            deph_settings=self.deph_settings,
-            colors_settings=self.colors_settings)
+        preset_action = QtWidgets.QAction('Preset', self)
+        preset_action.triggered.connect(self.exec_preset_menu)
+        open_action = QtWidgets.QAction('Open CSV', self)
+        open_action.triggered.connect(self.call_open_scv)
+        data_menu = QtWidgets.QMenu('Data')
+        data_menu.addAction(open_action)
+
+        self.presets_bar = QtWidgets.QMenuBar()
+        self.presets_bar.addAction(preset_action)
+        self.presets_bar.addMenu(data_menu)
+
+        self.chart = ChartView(context=self.context)
         self.scroll = QtWidgets.QScrollArea()
         self.scroll.setWidget(self.chart)
         self.scroll.setWidgetResizable(True)
         self.scroll.verticalScrollBar().valueChanged.connect(
             self.chart.repaint)
 
-        self.schema = SchemaEditor()
+        self.schema = SchemaEditor(self.context)
         self.schema.branch_settings.connect(self.edit_branch_settings)
         self.schema.schema_edited.connect(self.apply_new_schema)
         self.schema_toggler = WidgetToggler('Schema', self.schema)
 
-        self.filters = FiltersWidget()
+        self.filters = FiltersWidget(self.chart.model, self.context)
         self.filters.filters_edited.connect(self.chart.compute_rects)
         self.filters_toggler = WidgetToggler('Filters', self.filters)
 
-        self.chart_settings_editor = ChartSettings()
+        self.chart_settings_editor = ChartSettings(self.context)
         mtd = self.chart.compute_rects
         self.chart_settings_editor.geometries_edited.connect(mtd)
         mtd = self.chart.repaint
@@ -55,31 +56,33 @@ class ChartWidget(QtWidgets.QWidget):
         self.chart_settings_toggler = WidgetToggler(
             'Settings', self.chart_settings_editor)
 
-        self.colors_settings_editor = ColorsSettingsEditor(
-            self.colors_settings)
+        self.colors_settings_editor = ColorsSettingsEditor(self.context)
         self.colors_settings_toggler = WidgetToggler(
             'Color settings', self.colors_settings_editor)
 
-        self.deph_settings_model = DephTableModel(self.deph_settings)
+        self.deph_settings_editor = DephSettingsEditor(self.context)
         mtd = self.chart.compute_rects
-        self.deph_settings_model.geometries_edited.connect(mtd)
-        self.slider_delegate = SliderDelegate(self.deph_settings_model)
-        self.chart.settings_changed.connect(
-            self.deph_settings_model.layoutChanged.emit)
-
-        self.deph_settings_table = QtWidgets.QTableView()
-        self.deph_settings_table.setItemDelegateForColumn(
-            0, self.slider_delegate)
-        self.deph_settings_table.setItemDelegateForColumn(
-            1, self.slider_delegate)
-        self.deph_settings_table.setModel(self.deph_settings_model)
+        self.deph_settings_editor.geometries_edited.connect(mtd)
         self.deph_settings_toggler = WidgetToggler(
-            'Paddings', self.deph_settings_table)
+            'Paddings', self.deph_settings_editor)
+
+        self.dictionnaries = DictionnariesEditor(
+            self.chart.model, self.context)
+        self.dictionnaries.translation_edited.connect(self.chart.repaint)
+        self.dictionnaries.translation_edited.connect(self.schema.repaint)
+        self.dictionnaries.translation_edited.connect(self.schema.tree_view.repaint)
+        self.dictionnaries_toggler = WidgetToggler(
+            'Dictionnaries', self.dictionnaries)
+
+        if not editor:
+            layout = QtWidgets.QHBoxLayout(self)
+            layout.addWidget(self.scroll)
+            return
 
         right_widget = QtWidgets.QWidget()
         right = QtWidgets.QVBoxLayout(right_widget)
         right.setContentsMargins(0, 0, 0, 0)
-        right.addWidget(self.presets_bar)
+        right.setSpacing(0)
         right.addWidget(self.schema_toggler)
         right.addWidget(self.schema)
         right.addWidget(self.filters_toggler)
@@ -87,16 +90,25 @@ class ChartWidget(QtWidgets.QWidget):
         right.addWidget(self.chart_settings_toggler)
         right.addWidget(self.chart_settings_editor)
         right.addWidget(self.deph_settings_toggler)
-        right.addWidget(self.deph_settings_table)
+        right.addWidget(self.deph_settings_editor)
         right.addWidget(self.colors_settings_toggler)
         right.addWidget(self.colors_settings_editor)
+        right.addWidget(self.dictionnaries_toggler)
+        right.addWidget(self.dictionnaries)
         right.addStretch(True)
         right_scroll = QtWidgets.QScrollArea()
         right_scroll.setWidget(right_widget)
         right_scroll.setWidgetResizable(True)
 
+        full_right = QtWidgets.QWidget()
+        right_layout = QtWidgets.QVBoxLayout(full_right)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(0)
+        right_layout.addWidget(self.presets_bar)
+        right_layout.addWidget(right_scroll)
+
         splitter = QtWidgets.QSplitter()
-        splitter.addWidget(right_scroll)
+        splitter.addWidget(full_right)
         splitter.addWidget(self.scroll)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 1)
@@ -111,7 +123,48 @@ class ChartWidget(QtWidgets.QWidget):
         self.chart.set_model(model)
         self.colors_settings_editor.fill()
         self.filters.set_model(model)
+        self.dictionnaries.set_model(model)
         self.schema.set_words(model.list_common_keys())
+
+    def set_entries(self, entries):
+        result = self.chart.model.set_entries(entries)
+        if not result:
+            self.chart.model.set_schema({})
+            self.schema.set_schema({})
+        self.chart.compute_rects()
+        self.schema.set_words(model.list_common_keys())
+        self.colors_settings_editor.fill()
+
+    def set_polars_dataframe(self, df, weight_key=None):
+        python_dicts = [
+            {col.name.replace('.', '-'): value
+                for col, value in zip(df.get_columns(), list(row))}
+            for row in df.iter_rows()]
+        entries = [
+            ChartEntry(
+                python_dict,
+                weight=(
+                    python_dicts.get(weight_key, 1)
+                    if weight_key is not None else 1))
+            for python_dict in python_dicts]
+        self.set_entries(entries)
+
+    def call_open_scv(self):
+        filepath, result = QtWidgets.QFileDialog.getOpenFileName(
+            self, 'Open CSV', filter='(*.csv)')
+        if not result:
+            return
+        self.open_csv(filepath)
+
+    def open_csv(self, filepath):
+        try:
+            import polars
+        except ModuleNotFoundError:
+            return QtWidgets.QMessageBox.critical(
+                self, 'Error',
+                'Polars Library is required to read csv, "pip install polars"',
+                QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.Ok)
+        self.set_polars_dataframe(polars.read_csv(filepath))
 
     def apply_new_schema(self):
         if not self.schema.is_valid():
@@ -128,7 +181,7 @@ class ChartWidget(QtWidgets.QWidget):
         self.colors_settings_editor.fill()
 
     def edit_branch_settings(self, branch):
-        dialog = BranchSettingDialog(branch, self.branch_settings)
+        dialog = BranchSettingDialog(branch, self.context.branch_settings)
         dialog.settings_edited.connect(self.chart.compute_rects)
         dialog.exec_()
 
@@ -202,7 +255,7 @@ class ChartWidget(QtWidgets.QWidget):
             menu.exec_(self.presets_bar.mapToGlobal(point))
             return
 
-        delete = QtWidgets.QMenu("Delete preset")
+        delete = QtWidgets.QMenu('Delete preset')
         menu.addMenu(delete)
         menu.addSeparator()
         for name in names:
@@ -225,22 +278,25 @@ class ChartWidget(QtWidgets.QWidget):
             json.dump(data, f, indent=2)
 
     def apply_preset(self, preset):
-        set_settings(preset['settings'])
-        self.colors_settings.data = preset['colors']
-        self.branch_settings.data = preset['branch_settings']
-        self.deph_settings.data = preset['deph_settings']
+        self.context.set_settings(preset['settings'])
+        self.context.colors_settings.data = preset['colors']
+        self.context.branch_settings.data = preset['branch_settings']
+        self.context.deph_settings.data = preset['deph_settings']
+        self.context.translation_settings.data = preset['translation_settings']
         self.chart.model.clear_filters()
         filters = [ChartFilter.deserialize(f) for f in preset['filters']]
         self.chart.model.filters = filters
+        self.chart.model.set_entries()
         self.set_schema(preset['schema'])
         self.schema.key_list.compute_rects()
 
     def preset(self):
         return {
-            'deph_settings': self.deph_settings.data,
-            'colors': self.colors_settings.data,
-            'settings': get_settings(),
-            'branch_settings': self.branch_settings.data,
+            'deph_settings': self.context.deph_settings.data,
+            'translation_settings': self.context.translation_settings.data,
+            'colors': self.context.colors_settings.data,
+            'settings': self.context.get_settings(),
+            'branch_settings': self.context.branch_settings.data,
             'filters': [f.serialize() for f in self.chart.model.filters],
             'schema': self.chart.model.schema}
 
@@ -266,7 +322,8 @@ class ChartWidget(QtWidgets.QWidget):
             print(filepath)
             with open(filepath, 'r') as f:
                 return json.load(f)
-        except BaseException as e:  # File does not exist or presets are corrupted.
+        except BaseException as e:
+            # File does not exist or presets are corrupted.
             print(e)
             return {}
 
@@ -289,8 +346,12 @@ if __name__ == '__main__':
     model.set_entries(entries)
 
     app = QtWidgets.QApplication([])
-    preset_file_path = "c:/temp/presets.json"
-    view = ChartWidget(preset_file_path)
+    file_path = "c:/temp/presets.json"
+    view = ChartWidget(preset_file_path=file_path, editor=True)
+    view.context.translation_settings['value', '1st-pass'] = '1ST PASS'
+    view.context.translation_settings['value', 'external'] = 'Client'
+    view.context.translation_settings['key', 'user-code'] = 'User'
+    view.context.sorting_settings['value', 'work_type'] = ['1st-pass', 'lead', 'external', 'cacaboudin']
     view.set_model(model)
     view.set_schema(schema)
     view.show()

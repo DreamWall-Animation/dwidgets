@@ -80,6 +80,46 @@ FORMATTERS = {
 }
 
 
+class ChartViewContext:
+    def __init__(self):
+        self.branch_settings = BranchSettings()
+        self.deph_settings = DephSettings()
+        self.colors_settings = ColorsSettings()
+        self.translation_settings = TranslationSettings()
+        self.sorting_settings = SortingSettings()
+        self.settings = {}
+
+    def get_settings(self):
+        default = DEFAULT_SETTINGS.copy()
+        default.update(_settings)
+        self.settings.update(default)
+        return self.settings
+
+    def set_settings(self, settings):
+        self.settings = settings
+
+    def set_setting(self, key, value):
+        if key not in DEFAULT_SETTINGS:
+            raise ValueError(f'"{key}" setting does not exists.')
+        self.settings[key] = value
+
+    def get_setting(self, key):
+        if key not in DEFAULT_SETTINGS:
+            raise ValueError(f'"{key}" setting does not exists.')
+        return self.settings.setdefault(key, DEFAULT_SETTINGS[key])
+
+    def get_output_width(self):
+        if not self.get_setting('display_output_type'):
+            return OUTPUT_WIDTH
+        return OUTPUT_WIDTH_EXPANDED
+
+
+def sort_elements(schema, elements):
+    result = [str(e) for e in schema if e in elements]
+    result += sorted([str(e) for e in elements if e not in schema])
+    return result
+
+
 class AbstractSettings:
     """
     Abstract class of settings which can be used as a 3 dimensional defaultdict
@@ -146,6 +186,33 @@ class BranchSettings(AbstractSettings):
             'value_suffix': '%'})
 
 
+class TranslationSettings(AbstractSettings):
+    def __init__(self):
+        self.data = {}
+
+    def _populate_missing_settings(self, word_type):
+        self.data.setdefault(word_type, {})
+
+    def __getitem__(self, index_key):
+        word_type, key = index_key
+        self._populate_missing_settings(word_type)
+        return self.data[word_type].get(key, key)
+
+
+class SortingSettings(AbstractSettings):
+
+    def __init__(self):
+        self.data = {}
+
+    def _populate_missing_settings(self, sorting_type):
+        self.data.setdefault(sorting_type, {})
+
+    def __getitem__(self, index_key):
+        sorting_type, node_type = index_key
+        self._populate_missing_settings(sorting_type)
+        return self.data[sorting_type].get(node_type, [])
+
+
 class ColorsSettings(AbstractSettings):
 
     def __init__(self):
@@ -159,36 +226,3 @@ class ColorsSettings(AbstractSettings):
         color_type, key = index_key
         self._populate_missing_settings(color_type)
         return self.data[color_type].setdefault(key, next(self.generator))
-
-
-_settings = {}
-
-
-def get_settings():
-    default = DEFAULT_SETTINGS.copy()
-    default.update(_settings)
-    _settings.update(default)
-    return _settings
-
-
-def set_settings(settings):
-    global _settings
-    _settings = settings
-
-
-def set_setting(key, value):
-    if key not in DEFAULT_SETTINGS:
-        raise ValueError(f'"{key}" setting does not exists.')
-    _settings[key] = value
-
-
-def get_setting(key):
-    if key not in DEFAULT_SETTINGS:
-        raise ValueError(f'"{key}" setting does not exists.')
-    return _settings.setdefault(key, DEFAULT_SETTINGS[key])
-
-
-def get_output_width():
-    if not get_setting('display_output_type'):
-        return OUTPUT_WIDTH
-    return OUTPUT_WIDTH_EXPANDED
