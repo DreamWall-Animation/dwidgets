@@ -495,13 +495,13 @@ class DephSettingsEditor(QtWidgets.QWidget):
 class DictionnariesEditor(QtWidgets.QWidget):
     translation_edited = QtCore.Signal()
 
-    def __init__(self, model, translation_settings, parent=None):
+    def __init__(self, model, context, parent=None):
         super().__init__(parent)
         self.key_dict = DictionnaryEditor(
-            'key', translation_settings, completer=model.list_common_keys)
+            'key', context, completer=model.list_common_keys)
         self.key_dict.model.translation_edited.connect(
             self.translation_edited.emit)
-        self.value_dict = DictionnaryEditor('value', translation_settings)
+        self.value_dict = DictionnaryEditor('value', context)
         self.value_dict.model.translation_edited.connect(
             self.translation_edited.emit)
         tab = QtWidgets.QTabWidget()
@@ -522,13 +522,13 @@ class DictionnariesEditor(QtWidgets.QWidget):
 class DictionnaryEditor(QtWidgets.QWidget):
     translation_edited = QtCore.Signal()
 
-    def __init__(self, key, translation_settings, completer=None, parent=None):
+    def __init__(self, key, context, completer=None, parent=None):
         super().__init__(parent)
         self.setMinimumHeight(300)
         self.key = key
         self.completer = completer
-        self.translation_settings = translation_settings
-        self.model = DictionnaryTableModel(key, translation_settings)
+        self.context = context
+        self.model = DictionnaryTableModel(key, context)
         self.model.translation_edited.connect(self.translation_edited.emit)
         self.table = QtWidgets.QTableView()
         self.table.verticalHeader().hide()
@@ -659,6 +659,124 @@ class DictionnaryTableModel(QtCore.QAbstractTableModel):
         if index.column() == 0:
             return dict_key
         return self.context.translation_settings[self.key, dict_key]
+
+
+class SortingEditor(QtWidgets.QWidget):
+    sorting_edited = QtCore.Signal()
+
+    def __init__(self, key='value', context=None, completer=None, parent=None):
+        super().__init__(parent)
+        self.context = context
+        self.setMinimumHeight(300)
+        self.key = key
+        self.completer = completer
+        self.model = SortingTableModel(key, context)
+        self.model.sorting_edited.connect(self.sorting_edited.emit)
+        self.table = QtWidgets.QTableView()
+        self.table.verticalHeader().hide()
+        self.table.setAlternatingRowColors(True)
+        mode = QtWidgets.QAbstractItemView.ExtendedSelection
+        self.table.setSelectionMode(mode)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.table.setModel(self.model)
+        add = QtWidgets.QPushButton('Add')
+        add.released.connect(self.call_add)
+        remove = QtWidgets.QPushButton('Remove')
+        remove.released.connect(self.call_remove)
+
+        buttons = QtWidgets.QHBoxLayout()
+        buttons.setContentsMargins(0, 0, 0, 0)
+        buttons.addStretch()
+        buttons.addWidget(add)
+        buttons.addWidget(remove)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(self.table)
+        layout.addLayout(buttons)
+
+    def call_remove(self):
+        indexes = self.table.selectionModel().selectedIndexes()
+        rows = sorted({i.row() for i in indexes})
+        self.model.deleted_rows(rows)
+
+    def set_model(self, model):
+        self.completer = model.list_common_keys
+
+    def call_add(self):
+        completion = self.completer() if self.completer else None
+        dialog = AddTranslationDialog(completion, self)
+        dialog.show()
+        dialog.translation_add.connect(self.add_translation)
+        point = self.table.mapToGlobal(self.table.rect().bottomLeft())
+        point.setY(point.y() + 2)
+        dialog.move(point)
+
+    def add_translation(self, data, display):
+        values = [v.strip(' ') for v in display.split(',')]
+        self.context.sorting_settings[self.key, data] = values
+        self.model.layoutChanged.emit()
+        self.model.sorting_edited.emit()
+
+
+class SortingTableModel(QtCore.QAbstractTableModel):
+    sorting_edited = QtCore.Signal()
+
+    def __init__(self, key, context):
+        super().__init__()
+        self.key = key
+        self.context = context
+
+    def rowCount(self, *_):
+        try:
+            return len(self.context.sorting_settings.data[self.key])
+        except KeyError:  # No entry already recorded
+            return 0
+
+    def columnCount(self, *_):
+        return 2
+
+    def deleted_rows(self, rows):
+        self.layoutAboutToBeChanged.emit()
+        dict_keys = sorted(self.context.sorting_settings.data[self.key].keys())
+        dict_keys = [dict_keys[r] for r in rows]
+        for dict_key in dict_keys:
+            del self.context.sorting_settings.data[self.key][dict_key]
+        self.layoutChanged.emit()
+        self.sorting_edited.emit()
+
+    def headerData(self, section, orientation, role):
+        if role != QtCore.Qt.DisplayRole:
+            return
+        if orientation == QtCore.Qt.Horizontal:
+            return ('Keyword', 'Value order')[section]
+
+    def flags(self, index):
+        flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+        if index.column() == 0:
+            return flags
+        return flags | QtCore.Qt.ItemIsEditable
+
+    def setData(self, index, value, role):
+        if role != QtCore.Qt.EditRole:
+            return False
+        dict_keys = sorted(
+            self.context.sorting_settings.data[self.key].keys())
+        dict_key = dict_keys[index.row()]
+        values = [v.strip(' ') for v in value.split(',')]
+        self.context.sorting_settings[self.key, dict_key] = values
+        self.sorting_edited.emit()
+        return True
+
+    def data(self, index, role):
+        if role not in (QtCore.Qt.DisplayRole, QtCore.Qt.EditRole):
+            return
+
+        dict_keys = sorted(
+            self.context.sorting_settings.data[self.key].keys())
+        dict_key = dict_keys[index.row()]
+        if index.column() == 0:
+            return dict_key
+        return ', '.join(self.context.sorting_settings[self.key, dict_key])
 
 
 @lru_cache()

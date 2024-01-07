@@ -91,7 +91,7 @@ class ChartViewContext:
 
     def get_settings(self):
         default = DEFAULT_SETTINGS.copy()
-        default.update(_settings)
+        default.update(self.settings)
         self.settings.update(default)
         return self.settings
 

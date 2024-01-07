@@ -12,7 +12,7 @@ from dwidgets.charts.schemawidgets import SchemaEditor
 from dwidgets.charts.settingswidgets import (
     BranchSettingDialog, ChartSettings, ColorsSettingsEditor,
     DephSettingsEditor, DictionnariesEditor, ErasePreset, FiltersWidget,
-    WidgetToggler)
+    SortingEditor, WidgetToggler)
 
 
 class ChartWidget(QtWidgets.QWidget):
@@ -70,9 +70,17 @@ class ChartWidget(QtWidgets.QWidget):
             self.chart.model, self.context)
         self.dictionnaries.translation_edited.connect(self.chart.repaint)
         self.dictionnaries.translation_edited.connect(self.schema.repaint)
-        self.dictionnaries.translation_edited.connect(self.schema.tree_view.repaint)
+        self.dictionnaries.translation_edited.connect(
+            self.schema.tree_view.repaint)
         self.dictionnaries_toggler = WidgetToggler(
             'Dictionnaries', self.dictionnaries)
+
+        self.sorting_editor = SortingEditor(
+            context=self.context,
+            completer=self.chart.model.list_common_keys)
+        self.sorting_editor.sorting_edited.connect(self.chart.compute_rects)
+        self.sorting_editor_toggler = WidgetToggler(
+            'Sorting', self.sorting_editor)
 
         if not editor:
             layout = QtWidgets.QHBoxLayout(self)
@@ -95,6 +103,8 @@ class ChartWidget(QtWidgets.QWidget):
         right.addWidget(self.colors_settings_editor)
         right.addWidget(self.dictionnaries_toggler)
         right.addWidget(self.dictionnaries)
+        right.addWidget(self.sorting_editor_toggler)
+        right.addWidget(self.sorting_editor)
         right.addStretch(True)
         right_scroll = QtWidgets.QScrollArea()
         right_scroll.setWidget(right_widget)
@@ -124,6 +134,7 @@ class ChartWidget(QtWidgets.QWidget):
         self.colors_settings_editor.fill()
         self.filters.set_model(model)
         self.dictionnaries.set_model(model)
+        self.sorting_editor.set_model(model)
         self.schema.set_words(model.list_common_keys())
 
     def set_entries(self, entries):
@@ -137,7 +148,7 @@ class ChartWidget(QtWidgets.QWidget):
 
     def set_polars_dataframe(self, df, weight_key=None):
         python_dicts = [
-            {col.name.replace('.', '-'): value
+            {col.name.replace('|', '-'): value
                 for col, value in zip(df.get_columns(), list(row))}
             for row in df.iter_rows()]
         entries = [
@@ -348,10 +359,9 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     file_path = "c:/temp/presets.json"
     view = ChartWidget(preset_file_path=file_path, editor=True)
-    view.context.translation_settings['value', '1st-pass'] = '1ST PASS'
     view.context.translation_settings['value', 'external'] = 'Client'
     view.context.translation_settings['key', 'user-code'] = 'User'
-    view.context.sorting_settings['value', 'work_type'] = ['1st-pass', 'lead', 'external', 'cacaboudin']
+    view.context.sorting_settings['value', 'work_type'] = ['1st-pass', 'lead', 'external']
     view.set_model(model)
     view.set_schema(schema)
     view.show()

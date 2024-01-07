@@ -236,6 +236,7 @@ class ChartView(QtWidgets.QWidget):
         if len(parents) != len(new_parents):
             deph = min((len(parents), len(new_parents)))
             return self.context.deph_settings[deph - 1, 'fork_spacing']
+        return 0
 
     def compute_outputs(self):
         top = TOP_RESIZER_HEIGHT

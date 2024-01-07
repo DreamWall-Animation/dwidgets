@@ -77,7 +77,7 @@ class ChartModel:
 
     def get_branch(self, path):
         node = self.tree
-        keys = path.split('.')
+        keys = path.split('|')
         for key in keys:
             node = node[key]
         return node
@@ -154,7 +154,7 @@ class ChartOutput:
 
     def branch(self):
         try:
-            return '.'.join(self.parent.branch) + f'.{self.key}'
+            return '|'.join(self.parent.branch) + f'|{self.key}'
         except TypeError:
             print(self.parent.branch, self.key)
             raise
@@ -320,7 +320,7 @@ def tree_to_schema(root):
     outputs = root.all_outputs()
     schema = {}
     for output in outputs:
-        root, *path, output = output.branch().split('.')
+        root, *path, output = output.branch().split('|')
         main = schema.setdefault(root, [])
         if not path:
             main.append(output)
