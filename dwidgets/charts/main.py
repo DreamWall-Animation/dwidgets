@@ -330,7 +330,6 @@ class ChartWidget(QtWidgets.QWidget):
     def get_presets_data(self, filepath=None):
         filepath = filepath or self.preset_file_path
         try:
-            print(filepath)
             with open(filepath, 'r') as f:
                 return json.load(f)
         except BaseException as e:
