@@ -155,7 +155,7 @@ class ChartWidget(QtWidgets.QWidget):
             ChartEntry(
                 python_dict,
                 weight=(
-                    python_dicts.get(weight_key, 1)
+                    python_dict.get(weight_key, 1)
                     if weight_key is not None else 1))
             for python_dict in python_dicts]
         self.set_entries(entries)
