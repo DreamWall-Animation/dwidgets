@@ -52,7 +52,6 @@ class DephTableModel(QtCore.QAbstractTableModel):
         self.context = context
 
     def rowCount(self, *_):
-        print(len(self.context.deph_settings))
         return len(self.context.deph_settings) - 1
 
     def columnCount(self, *_):
