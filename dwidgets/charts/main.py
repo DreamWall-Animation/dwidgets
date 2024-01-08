@@ -1,7 +1,6 @@
-import sys, os
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
+import os
+import json
 import shutil
 from functools import partial
 from PySide2 import QtWidgets, QtCore
@@ -189,6 +188,7 @@ class ChartWidget(QtWidgets.QWidget):
 
         self.chart.set_schema(self.schema.get_schema())
         self.colors_settings_editor.fill()
+        self.deph_settings_editor.deph_settings_model.layoutChanged.emit()
 
     def set_schema(self, schema):
         self.schema.set_schema(schema)

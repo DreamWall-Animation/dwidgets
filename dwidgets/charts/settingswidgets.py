@@ -11,7 +11,7 @@ class WidgetToggler(QtWidgets.QPushButton):
     def __init__(self, label, widget, parent=None):
         super(WidgetToggler, self).__init__(parent)
         self.setText(' ▼ ' + label)
-        self.setStyleSheet('Text-align:left; background-color:rgba(0, 0, 0, 30)')
+        self.setStyleSheet('Text-align:left; background-color:rgb(150, 150, 150)')
         self.widget = widget
         self.setCheckable(True)
         self.setChecked(True)
@@ -52,6 +52,7 @@ class DephTableModel(QtCore.QAbstractTableModel):
         self.context = context
 
     def rowCount(self, *_):
+        print(len(self.context.deph_settings))
         return len(self.context.deph_settings) - 1
 
     def columnCount(self, *_):
