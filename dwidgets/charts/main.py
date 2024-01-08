@@ -5,7 +5,7 @@ sys.path.append(
 import shutil
 from functools import partial
 from PySide2 import QtWidgets, QtCore
-from dwidgets.charts.model import ChartModel, ChartFilter
+from dwidgets.charts.model import ChartFilter, ChartEntry
 from dwidgets.charts.settings import ChartViewContext
 from dwidgets.charts.chartview import ChartView
 from dwidgets.charts.schemawidgets import SchemaEditor
@@ -143,7 +143,7 @@ class ChartWidget(QtWidgets.QWidget):
             self.chart.model.set_schema({})
             self.schema.set_schema({})
         self.chart.compute_rects()
-        self.schema.set_words(model.list_common_keys())
+        self.schema.set_words(self.chart.model.list_common_keys())
         self.colors_settings_editor.fill()
 
     def set_polars_dataframe(self, df, weight_key=None):
@@ -162,12 +162,12 @@ class ChartWidget(QtWidgets.QWidget):
 
     def call_open_csv(self):
         filepath, result = QtWidgets.QFileDialog.getOpenFileName(
-            self, 'Open CSV', filter='(*.csv) | (*.xlsx)')
+            self, 'Open CSV', filter='(*.csv)')
         if not result:
             return
-        self.open_csv(filepath)
+        self.open_excel(filepath)
 
-    def open_csv(self, filepath):
+    def open_excel(self, filepath):
         try:
             import polars
         except ModuleNotFoundError:
@@ -175,10 +175,10 @@ class ChartWidget(QtWidgets.QWidget):
                 self, 'Error',
                 'Polars Library is required to read csv, "pip install polars"',
                 QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.Ok)
-        if os.path.splitext(os.path.basename(filepath))[:-1].lower() == '.csv':
+        if os.path.splitext(filepath)[-1].lower() == '.csv':
             dataframe = polars.read_csv(filepath)
         else:
-            dataframe = polars.read_xlsx(filepath, 'time_spent')
+            dataframe = polars.read_excel(filepath)
         self.set_polars_dataframe(dataframe, 'time_spent')
 
     def apply_new_schema(self):
@@ -351,21 +351,11 @@ class ChartWidget(QtWidgets.QWidget):
 if __name__ == '__main__':
     import os
     import json
-    with open(r"C:\temp\df.json", 'r') as f:
-        data = json.load(f)
-    schema = {'show': ['work_type']}
-    from dwidgets.charts.model import ChartEntry
-    entries = [ChartEntry(d, d['time_spent']) for d in data]
-    model = ChartModel()
-    model.set_entries(entries)
-
     app = QtWidgets.QApplication([])
-    file_path = "c:/temp/presets.json"
+    preset_folder = os.path.expanduser('~/prodgraph_temp')
+    os.makedirs(preset_folder, exist_ok=True)
+    file_path = f'{preset_folder}/preset.json'
+
     view = ChartWidget(preset_file_path=file_path, editor=True)
-    view.context.translation_settings['value', 'external'] = 'Client'
-    view.context.translation_settings['key', 'user-code'] = 'User'
-    view.context.sorting_settings['value', 'work_type'] = ['1st-pass', 'lead', 'external']
-    view.set_model(model)
-    view.set_schema(schema)
     view.show()
     app.exec_()
