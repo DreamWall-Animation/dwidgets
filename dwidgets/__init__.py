@@ -13,4 +13,5 @@ from dwidgets.tag import TagView
 from dwidgets.tilteddates import TiltedDates
 from dwidgets.weightslider import WeightSlider
 from dwidgets.rangeslider import RangeSlider, RangeSliderBar
-from dwidgets.charts.main import ChartWidget, ChartEntry
+from dwidgets.charts.main import ChartWidget
+from dwidgets.charts.model import ChartEntry
