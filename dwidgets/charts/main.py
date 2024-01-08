@@ -24,7 +24,7 @@ class ChartWidget(QtWidgets.QWidget):
         preset_action = QtWidgets.QAction('Preset', self)
         preset_action.triggered.connect(self.exec_preset_menu)
         open_action = QtWidgets.QAction('Open CSV', self)
-        open_action.triggered.connect(self.call_open_scv)
+        open_action.triggered.connect(self.call_open_csv)
         data_menu = QtWidgets.QMenu('Data')
         data_menu.addAction(open_action)
 
@@ -160,9 +160,9 @@ class ChartWidget(QtWidgets.QWidget):
             for python_dict in python_dicts]
         self.set_entries(entries)
 
-    def call_open_scv(self):
+    def call_open_csv(self):
         filepath, result = QtWidgets.QFileDialog.getOpenFileName(
-            self, 'Open CSV', filter='(*.csv)')
+            self, 'Open CSV', filter='(*.csv) | (*.xlsx)')
         if not result:
             return
         self.open_csv(filepath)
@@ -175,7 +175,11 @@ class ChartWidget(QtWidgets.QWidget):
                 self, 'Error',
                 'Polars Library is required to read csv, "pip install polars"',
                 QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.Ok)
-        self.set_polars_dataframe(polars.read_csv(filepath))
+        if os.path.splitext(os.path.basename(filepath))[:-1].lower() == '.csv':
+            dataframe = polars.read_csv(filepath)
+        else:
+            dataframe = polars.read_xlsx(filepath, 'time_spent')
+        self.set_polars_dataframe(dataframe, 'time_spent')
 
     def apply_new_schema(self):
         if not self.schema.is_valid():
