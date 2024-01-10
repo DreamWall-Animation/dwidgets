@@ -159,6 +159,10 @@ class ChartWidget(QtWidgets.QWidget):
             for python_dict in python_dicts]
         self.set_entries(entries)
 
+    def reevaluate_weights(self, function):
+        self.chart.model.reevaluate_weights(function)
+        self.chart.compute_rects()
+
     def call_open_csv(self):
         filepath, result = QtWidgets.QFileDialog.getOpenFileName(
             self, 'Open CSV', filter='(*.csv)')
@@ -190,9 +194,9 @@ class ChartWidget(QtWidgets.QWidget):
         self.colors_settings_editor.fill()
         self.deph_settings_editor.deph_settings_model.layoutChanged.emit()
 
-    def set_schema(self, schema):
+    def set_schema(self, schema, collapsed=False):
         self.schema.set_schema(schema)
-        self.chart.set_schema(schema)
+        self.chart.set_schema(schema, collapsed=collapsed)
         self.colors_settings_editor.fill()
 
     def edit_branch_settings(self, branch):
@@ -292,7 +296,7 @@ class ChartWidget(QtWidgets.QWidget):
         with open(self.preset_file_path, 'w') as f:
             json.dump(data, f, indent=2)
 
-    def apply_preset(self, preset):
+    def apply_preset(self, preset, collapsed=False):
         self.context.set_settings(preset['settings'])
         self.context.colors_settings.data = preset['colors']
         self.context.branch_settings.data = preset['branch_settings']
@@ -302,7 +306,7 @@ class ChartWidget(QtWidgets.QWidget):
         filters = [ChartFilter.deserialize(f) for f in preset['filters']]
         self.chart.model.filters = filters
         self.chart.model.set_entries()
-        self.set_schema(preset['schema'])
+        self.set_schema(preset['schema'], collapsed=collapsed)
         self.schema.key_list.compute_rects()
 
     def preset(self):

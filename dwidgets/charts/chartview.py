@@ -37,8 +37,8 @@ class ChartView(QtWidgets.QWidget):
     def sizeHint(self):
         return QtCore.QSize(800, 600)
 
-    def set_schema(self, schema):
-        self.model.set_schema(schema)
+    def set_schema(self, schema, collapsed=False):
+        self.model.set_schema(schema, collapsed)
         self.compute_rects()
 
     def mousePressEvent(self, event):
@@ -405,7 +405,6 @@ class ChartView(QtWidgets.QWidget):
                         'rect': rect, 'value': value, 'maximum': maximum,
                         'output_total': total}
             left += rect.width()
-
         # Fix total rect left to the right band.
         if left + TOTAL_WIDTH > vp_rect.right() - TOTAL_WIDTH:
             left = vp_rect.right() - TOTAL_WIDTH

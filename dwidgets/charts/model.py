@@ -45,14 +45,18 @@ class ChartModel:
             return None
         return all_schema_keys(self.schema)
 
-    def build_tree(self):
-        self.tree, self.deph, self.nodes, self.outputs = hierarchize(
-            self.entries, self.schema)
+    def reevaluate_weights(self, function):
+        for entry in self.all_entries:
+            entry.weight = function(entry)
 
-    def set_schema(self, schema):
+    def build_tree(self, collapsed=False):
+        self.tree, self.deph, self.nodes, self.outputs = hierarchize(
+            self.entries, self.schema, collapsed=collapsed)
+
+    def set_schema(self, schema, collapsed=False):
         self.schema = schema
         if self.entries is not None:
-            self.build_tree()
+            self.build_tree(collapsed)
 
     def filtered_entries(self):
         if self.filters:
@@ -63,6 +67,8 @@ class ChartModel:
 
     def set_entries(self, entries=None):
         self.all_entries = entries or self.all_entries
+        if not self.all_entries:
+            return False
         self.entries = self.filtered_entries()
         try:
             if self.schema is not None:
@@ -336,7 +342,7 @@ def tree_to_schema(root):
     return schema
 
 
-def hierarchize(entries, schema):
+def hierarchize(entries, schema, collapsed=False):
     """
     This is the function building the tree from entries and schema.
     """
@@ -352,6 +358,7 @@ def hierarchize(entries, schema):
             for target, key in zip(targets[:-1], branch[:-1]):
                 node = node.child(target, key, branch[:-1], path=targets)
                 nodes[node.index] = node
+                node.expanded = not collapsed
             output = node.append(branch[-1], targets[-1], index)
             outputs[output.index] = output
             deph = max((deph, node.level))
