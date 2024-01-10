@@ -23,7 +23,9 @@ DEFAULT_SETTINGS = {
     'display_output_type': False,
     'header_width': 200,
     'display_keys': False,
-    'hidden_keywords': []
+    'hidden_keywords': [],
+    'default_formatter': 'Percent on output',
+    'default_value_suffix': ''
 }
 COLORS = (
     '#FDBCB4',
@@ -60,18 +62,19 @@ def sum_float2(value, suffix, _, __, ___):
 
 
 def max_percent(value, suffix, _, maximum, __):
-    return f'{round((value / maximum) * 100, 1)}{suffix}'
+    return f'{round((value / maximum) * 100, 1)}{suffix} %'
 
 
 def total_percent(value, suffix, _, __, total):
-    return f'{round((value / total) * 100, 1)}{suffix}'
+    return f'{round((value / total) * 100, 1)}{suffix} %'
 
 
 def output_percent(value, suffix, output_total, *_):
-    return f'{round((value / output_total) * 100, 1)}{suffix}'
+    return f'{round((value / output_total) * 100, 1)}{suffix} %'
 
 
 FORMATTERS = {
+    'Default': None,
     'Percent on max': max_percent,
     'Percent on total': total_percent,
     'Percent on output': output_percent,

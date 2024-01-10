@@ -135,10 +135,8 @@ class ChartView(QtWidgets.QWidget):
                     value = sum(
                         self.model.entries[i].weight
                         for i in output.content[key])
-                    branches = self.context.branch_settings
-                    formatter = branches[output.branch(), 'formatter']
-                    suffix = branches[output.branch(), 'value_suffix']
-                    formatter = FORMATTERS[formatter]
+                    branch = output.branch()
+                    formatter, suffix = self.get_formatter_and_suffix(branch)
                     value = formatter(
                         data['value'],
                         suffix,
@@ -161,7 +159,8 @@ class ChartView(QtWidgets.QWidget):
         if action['type'] == 'horizontal_resize':
             rect = self.resizer_rect
             width = pos.x() - rect.left()
-            self.context.set_setting('header_width', max((width, MINIUM_COLUMN_WIDTH)))
+            self.context.set_setting(
+                'header_width', max((width, MINIUM_COLUMN_WIDTH)))
             self.compute_rects()
             return
         if action['type'] == 'vertical_resize':
@@ -428,6 +427,15 @@ class ChartView(QtWidgets.QWidget):
     def resizeEvent(self, _):
         self.compute_rects()
 
+    def get_formatter_and_suffix(self, branch):
+        formatter = self.context.branch_settings[branch, 'formatter']
+        formatter = FORMATTERS[formatter]
+        if formatter is None:
+            formatter = self.context.get_setting('default_formatter')
+            suffix = self.context.get_setting('default_value_suffix')
+            return FORMATTERS[formatter], suffix
+        return formatter, self.context.branch_settings[branch, 'value_suffix']
+
     def paint_headers(self, painter, header_rects, text_option):
         for index, rect in header_rects.items():
             node = self.model.nodes[index]
@@ -560,9 +568,7 @@ class ChartView(QtWidgets.QWidget):
             if check_rect.top() > event.rect().bottom():
                 continue
             output = self.model.outputs[index]
-            formatter = self.context.branch_settings[output.branch(), 'formatter']
-            suffix = self.context.branch_settings[output.branch(), 'value_suffix']
-            formatter = FORMATTERS[formatter]
+            formatter, suffix = self.get_formatter_and_suffix(output.branch())
             for key, data in content_rects.items():
                 rect = data['rect']
                 color = self.context.colors_settings['value', key]

@@ -423,18 +423,45 @@ class ChartSettings(QtWidgets.QWidget):
         self.display_keys.setChecked(self.context.get_setting('display_keys'))
         self.display_keys.released.connect(self.update_settings)
 
+        self.default_formatter = QtWidgets.QComboBox()
+        self.default_formatter.addItems(list(FORMATTERS)[1:])
+        value = context.get_setting('default_formatter')
+        self.default_formatter.setCurrentText(value)
+        self.default_formatter.currentIndexChanged.connect(
+            self._update_settings)
+
+        self.default_suffix = QtWidgets.QLineEdit()
+        value = context.get_setting('default_value_suffix')
+        self.default_suffix.setText(value)
+        self.default_suffix.textEdited.connect(self._update_settings)
+
+        hlayout = QtWidgets.QHBoxLayout()
+        hlayout.setContentsMargins(0, 0, 0, 0)
+        hlayout.addWidget(QtWidgets.QLabel('Global value formatter: '))
+        hlayout.addWidget(self.default_formatter)
+        hlayout.addWidget(self.default_suffix)
+        hlayout.addStretch()
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(self.display_output_type)
         layout.addWidget(self.display_keys)
+        layout.addLayout(hlayout)
 
     def update_settings(self, edit_geometries=False):
         value = self.display_output_type.isChecked()
         self.context.set_setting('display_output_type', value)
         self.context.set_setting('display_keys', self.display_keys.isChecked())
+        value = self.default_formatter.currentText()
+        self.context.set_setting('default_formatter', value)
+        value = self.default_suffix.text()
+        self.context.set_setting('default_value_suffix', value)
         if edit_geometries:
             self.geometries_edited.emit()
         else:
             self.setting_edited.emit()
+
+    def _update_settings(self, *_):
+        self.update_settings(False)
 
 
 class ErasePreset(QtWidgets.QDialog):
