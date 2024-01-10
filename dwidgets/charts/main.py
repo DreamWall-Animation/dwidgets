@@ -57,13 +57,13 @@ class ChartWidget(QtWidgets.QWidget):
 
         self.colors_settings_editor = ColorsSettingsEditor(self.context)
         self.colors_settings_toggler = WidgetToggler(
-            'Color settings', self.colors_settings_editor)
+            'Color settings', self.colors_settings_editor, expanded=False)
 
         self.deph_settings_editor = DephSettingsEditor(self.context)
         mtd = self.chart.compute_rects
         self.deph_settings_editor.geometries_edited.connect(mtd)
         self.deph_settings_toggler = WidgetToggler(
-            'Paddings', self.deph_settings_editor)
+            'Paddings', self.deph_settings_editor, expanded=False)
 
         self.dictionnaries = DictionnariesEditor(
             self.chart.model, self.context)
@@ -72,14 +72,14 @@ class ChartWidget(QtWidgets.QWidget):
         self.dictionnaries.translation_edited.connect(
             self.schema.tree_view.repaint)
         self.dictionnaries_toggler = WidgetToggler(
-            'Dictionnaries', self.dictionnaries)
+            'Dictionnaries', self.dictionnaries, expanded=False)
 
         self.sorting_editor = SortingEditor(
             context=self.context,
             completer=self.chart.model.list_common_keys)
         self.sorting_editor.sorting_edited.connect(self.chart.compute_rects)
         self.sorting_editor_toggler = WidgetToggler(
-            'Sorting', self.sorting_editor)
+            'Sorting', self.sorting_editor, expanded=False)
 
         if not editor:
             layout = QtWidgets.QHBoxLayout(self)
@@ -120,7 +120,7 @@ class ChartWidget(QtWidgets.QWidget):
         splitter.addWidget(full_right)
         splitter.addWidget(self.scroll)
         splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 1)
+        splitter.setStretchFactor(1, 3)
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.addWidget(splitter)

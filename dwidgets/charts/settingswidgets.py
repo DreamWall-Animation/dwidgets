@@ -8,13 +8,15 @@ from dwidgets.charts.settings import (
 
 
 class WidgetToggler(QtWidgets.QPushButton):
-    def __init__(self, label, widget, parent=None):
+    def __init__(self, label, widget, expanded=True, parent=None):
         super(WidgetToggler, self).__init__(parent)
-        self.setText(' ▼ ' + label)
+        self.setText((' ▼ ' if expanded else ' ► ') + label)
         self.setStyleSheet('Text-align:left; background-color:rgb(150, 150, 150)')
         self.widget = widget
         self.setCheckable(True)
-        self.setChecked(True)
+        self.setChecked(expanded)
+        if not expanded:
+            self.widget.setVisible(False)
         self.toggled.connect(self._call_toggled)
 
     def _call_toggled(self, state):
