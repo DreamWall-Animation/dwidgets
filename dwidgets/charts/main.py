@@ -146,6 +146,9 @@ class ChartWidget(QtWidgets.QWidget):
         self.colors_settings_editor.fill()
 
     def set_polars_dataframe(self, df, weight_key=None):
+        if df is None:
+            self.set_entries([])
+            return
         python_dicts = [
             {col.name.replace('|', '-'): value
                 for col, value in zip(df.get_columns(), list(row))}
