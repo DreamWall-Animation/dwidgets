@@ -302,17 +302,22 @@ class ChartWidget(QtWidgets.QWidget):
         self.context.branch_settings.data = preset['branch_settings']
         self.context.deph_settings.data = preset['deph_settings']
         self.context.translation_settings.data = preset['translation_settings']
+        self.context.sorting_settings.data = preset['sorting_settings']
         self.chart.model.clear_filters()
         filters = [ChartFilter.deserialize(f) for f in preset['filters']]
         self.chart.model.filters = filters
         self.chart.model.set_entries()
         self.set_schema(preset['schema'], collapsed=collapsed)
         self.schema.key_list.compute_rects()
+        self.dictionnaries.update()
+        self.sorting_editor.model.layoutChanged.emit()
+        self.deph_settings_editor.deph_settings_model.layoutChanged.emit()
 
     def preset(self):
         return {
             'deph_settings': self.context.deph_settings.data,
             'translation_settings': self.context.translation_settings.data,
+            'sorting_settings': self.context.sorting_settings.data,
             'colors': self.context.colors_settings.data,
             'settings': self.context.get_settings(),
             'branch_settings': self.context.branch_settings.data,

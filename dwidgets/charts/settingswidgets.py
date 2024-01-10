@@ -706,12 +706,12 @@ class SortingEditor(QtWidgets.QWidget):
         completion = self.completer() if self.completer else None
         dialog = AddTranslationDialog(completion, self)
         dialog.show()
-        dialog.translation_add.connect(self.add_translation)
+        dialog.translation_add.connect(self.add_sorting)
         point = self.table.mapToGlobal(self.table.rect().bottomLeft())
         point.setY(point.y() + 2)
         dialog.move(point)
 
-    def add_translation(self, data, display):
+    def add_sorting(self, data, display):
         values = [v.strip(' ') for v in display.split(',')]
         self.context.sorting_settings[self.key, data] = values
         self.model.layoutChanged.emit()
