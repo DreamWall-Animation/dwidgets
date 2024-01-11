@@ -108,6 +108,11 @@ class BranchSettingDialog(QtWidgets.QDialog):
         font.setPixelSize(13)
         self.label.setFont(font)
 
+        self.visible = QtWidgets.QComboBox()
+        self.visible.addItems(('Always', 'Hide on expanded', 'Never'))
+        self.visible.setCurrentText(settings[branch, 'visibility'])
+        self.visible.currentTextChanged.connect(self.value_changed)
+
         self.height = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.height.setMinimum(MINIUM_ROW_HEIGHT)
         self.height.setMaximum(MAXIMUM_ROW_HEIGHT)
@@ -143,6 +148,7 @@ class BranchSettingDialog(QtWidgets.QDialog):
         formatter_layout.addWidget(self.value_suffix)
 
         form = QtWidgets.QFormLayout()
+        form.addRow('Visibility', self.visible)
         form.addRow('Height', self.height)
         form.addRow('Top padding', self.top_padding)
         form.addRow('Bottom padding', self.bottom_padding)
@@ -152,7 +158,8 @@ class BranchSettingDialog(QtWidgets.QDialog):
         layout.addWidget(self.label)
         layout.addLayout(form)
 
-    def value_changed(self, _):
+    def value_changed(self, *_):
+        self.settings[self.branch, 'visibility'] = self.visible.currentText()
         self.settings[self.branch, 'height'] = self.height.value()
         self.settings[self.branch, 'top_padding'] = self.top_padding.value()
         value = self.bottom_padding.value()

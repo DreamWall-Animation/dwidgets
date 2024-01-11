@@ -129,9 +129,11 @@ class ChartView(QtWidgets.QWidget):
                     'node': node}
 
         for index, content_rects in self.chart_rects.items():
+            output = self.model.outputs[index]
+            if not output_charts_visible(self.context, output):
+                continue
             for key, data in content_rects.items():
                 if data['rect'].contains(pos):
-                    output = self.model.outputs[index]
                     value = sum(
                         self.model.entries[i].weight
                         for i in output.content[key])
@@ -568,6 +570,8 @@ class ChartView(QtWidgets.QWidget):
             if check_rect.top() > event.rect().bottom():
                 continue
             output = self.model.outputs[index]
+            if not output_charts_visible(self.context, output):
+                continue
             formatter, suffix = self.get_formatter_and_suffix(output.branch())
             for key, data in content_rects.items():
                 rect = data['rect']
@@ -615,7 +619,8 @@ class ChartView(QtWidgets.QWidget):
             if rect.top() > event.rect().bottom():
                 break
             output = self.model.outputs[index]
-            output = self.model.outputs[index]
+            if not output_charts_visible(self.context, output):
+                continue
             parent = output.parent
             left = (
                 self.header_rects[parent.index].right() +
@@ -823,3 +828,14 @@ def get_output_top_height(context, branch, rect):
     tpadding = context.branch_settings[branch, 'top_padding']
     bpadding = context.branch_settings[branch, 'bottom_padding']
     return rect.top() + tpadding, rect.height() - tpadding - bpadding
+
+
+def output_charts_visible(context, output):
+    visibility = context.branch_settings[output.branch(), 'visibility']
+    if visibility == 'Always':
+        return True
+    if visibility == 'Never':
+        return False
+    if not output.parent.children():
+        return True
+    return not output.parent.expanded
