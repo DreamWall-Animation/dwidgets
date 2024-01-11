@@ -183,7 +183,7 @@ class BranchSettings(AbstractSettings):
     def _populate_missing_settings(self, branch):
         self.data.setdefault(branch, {
             'height': DEFAULT_OUTPUT_HEIGHT,
-            'visiblility': 'Always',
+            'visibility': 'Always',
             'top_padding': 0,
             'bottom_padding': 0,
             'formatter': list(FORMATTERS.keys())[0],
