@@ -442,7 +442,21 @@ class ChartSettings(QtWidgets.QWidget):
         self.default_suffix = QtWidgets.QLineEdit()
         value = context.get_setting('default_value_suffix')
         self.default_suffix.setText(value)
-        self.default_suffix.textEdited.connect(self._update_settings)
+        self.default_suffix.textEdited.connect(self.update_settings)
+
+        self.color_for_nodes = QtWidgets.QCheckBox(
+            'Use value color for tree nodes')
+        state = context.get_setting('use_value_color_for_nodes')
+        self.color_for_nodes.setChecked(state)
+        self.color_for_nodes.released.connect(self.update_settings)
+
+        self.tree_vsort_method = QtWidgets.QComboBox()
+        items = ['Alphabetical', 'Defined sorter', 'By total']
+        self.tree_vsort_method.addItems(items)
+        value = self.context.get_setting('vsort_nodes_method')
+        self.tree_vsort_method.setCurrentText(value)
+        self.tree_vsort_method.currentIndexChanged.connect(
+            self._update_settings)
 
         hlayout = QtWidgets.QHBoxLayout()
         hlayout.setContentsMargins(0, 0, 0, 0)
@@ -451,9 +465,15 @@ class ChartSettings(QtWidgets.QWidget):
         hlayout.addWidget(self.default_suffix)
         hlayout.addStretch()
 
+        flayout = QtWidgets.QFormLayout()
+        flayout.setContentsMargins(0, 0, 0, 0)
+        flayout.addRow('Vertical tree sorting method', self.tree_vsort_method)
+
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(self.display_output_type)
         layout.addWidget(self.display_keys)
+        layout.addWidget(self.color_for_nodes)
+        layout.addLayout(flayout)
         layout.addLayout(hlayout)
 
     def update_settings(self, edit_geometries=False):
@@ -464,13 +484,17 @@ class ChartSettings(QtWidgets.QWidget):
         self.context.set_setting('default_formatter', value)
         value = self.default_suffix.text()
         self.context.set_setting('default_value_suffix', value)
+        value = self.color_for_nodes.isChecked()
+        self.context.set_setting('use_value_color_for_nodes', value)
+        value = self.tree_vsort_method.currentText()
+        self.context.set_setting('vsort_nodes_method', value)
         if edit_geometries:
             self.geometries_edited.emit()
         else:
             self.setting_edited.emit()
 
     def _update_settings(self, *_):
-        self.update_settings(False)
+        self.update_settings(True)
 
 
 class ErasePreset(QtWidgets.QDialog):

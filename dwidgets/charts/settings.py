@@ -25,7 +25,9 @@ DEFAULT_SETTINGS = {
     'display_keys': False,
     'hidden_keywords': [],
     'default_formatter': 'Percent on output',
-    'default_value_suffix': ''
+    'default_value_suffix': '',
+    'use_value_color_for_nodes': False,
+    'vsort_nodes_method': 'Alphabetical'
 }
 COLORS = (
     '#FDBCB4',
@@ -115,12 +117,6 @@ class ChartViewContext:
         if not self.get_setting('display_output_type'):
             return OUTPUT_WIDTH
         return OUTPUT_WIDTH_EXPANDED
-
-
-def sort_elements(schema, elements):
-    result = [str(e) for e in schema if e in elements]
-    result += sorted([str(e) for e in elements if e not in schema])
-    return result
 
 
 class AbstractSettings:

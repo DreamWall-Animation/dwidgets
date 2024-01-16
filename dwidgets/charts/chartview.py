@@ -1,13 +1,15 @@
+from functools import partial
 from collections import defaultdict
 from PySide2 import QtWidgets, QtCore, QtGui
-from dwidgets.charts.dialog import ChartDetails
+from dwidgets.charts.dialog import ChartDetails, ChartDetailsTotal
 from dwidgets.charts.model import ChartModel
 from dwidgets.charts.settings import (
-    ChartViewContext, sort_elements,
+    ChartViewContext,
     OUTPUT_ARROW_RADIUS, TABLE_MINIMUM_WIDTH,
     TOP_RESIZER_HEIGHT, FORMATTERS, GRADUATION_HEIGHT,
     LEFT_RESIZER_WIDTH, MINIUM_COLUMN_WIDTH, MINIUM_ROW_HEIGHT,
     FORKS_PADDING, FORKS_WIDTH, FORKS_XRADIUS, TOTAL_WIDTH)
+from dwidgets.charts.sorting import sort_elements, TREE_SORTERS
 
 
 class ChartView(QtWidgets.QWidget):
@@ -45,8 +47,9 @@ class ChartView(QtWidgets.QWidget):
         if event.button() == QtCore.Qt.LeftButton:
             self.mouse_pressed = True
             self.possible_action = self.detect_hovered_action(event.pos())
+            exectuable_actions = ('toggle', 'chart', 'chart_total')
             if self.possible_action:
-                if self.possible_action['type'] in ('toggle', 'chart'):
+                if self.possible_action['type'] in exectuable_actions:
                     self.execute_action(action=self.possible_action)
                 else:
                     self.current_action = self.possible_action
@@ -66,6 +69,7 @@ class ChartView(QtWidgets.QWidget):
         self.update_override(
             None if not self.possible_action
             else self.possible_action.get('cursor'))
+        self.repaint()
 
     def update_override(self, override):
         current_override = QtWidgets.QApplication.overrideCursor()
@@ -152,6 +156,13 @@ class ChartView(QtWidgets.QWidget):
                         'node': output,
                         'key': key}
 
+        for index, data in self.total_rects.items():
+            if data['rect'].contains(pos):
+                return {
+                    'type': 'chart_total',
+                    'maximum': data['maximum'],
+                    'node': self.model.outputs[index]}
+
     def leaveEvent(self, _):
         self.possible_action = None
         self.update_override(None)
@@ -188,7 +199,12 @@ class ChartView(QtWidgets.QWidget):
             entries = [self.model.entries[i] for i in entry_indexes]
             self.current_action = None
             return ChartDetails(
-                action['node'], action['key'], entries, self).exec_()
+                self.context, action['node'], action['key'], entries,
+                self).exec_()
+        if action['type'] == 'chart_total':
+            return ChartDetailsTotal(
+                self.context, action['node'], action['maximum'],
+                self.model.total(), self.model.entries, self).exec_()
         if action['type'] == 'navigation':
             value = get_value_from_point(self.navigation_slider, pos)
             if action['mode'] == 'min':
@@ -242,7 +258,11 @@ class ChartView(QtWidgets.QWidget):
     def compute_outputs(self):
         top = TOP_RESIZER_HEIGHT
         left = LEFT_RESIZER_WIDTH + self.context.get_setting('header_width')
-        outputs = [o for o in self.model.tree.all_outputs() if o.is_expanded()]
+        sorter = self.context.get_setting('vsort_nodes_method')
+        sorter = partial(TREE_SORTERS[sorter], self.model, self.context)
+        outputs = [
+            o for o in self.model.tree.all_outputs(sorter=sorter)
+            if o.is_expanded()]
         parents = []
 
         self.navigation_slider.rect = QtCore.QRect(
@@ -285,7 +305,10 @@ class ChartView(QtWidgets.QWidget):
         fork_rects = {}
         if self.model.is_empty():
             return header_rects, fork_rects
-        for node in self.model.tree.flat():
+
+        sorter = self.context.get_setting('vsort_nodes_method')
+        sorter = partial(TREE_SORTERS[sorter], self.model, self.context)
+        for node in self.model.tree.flat(sorter):
             if not node.parent or not node.is_expanded():
                 continue
             left = tree_node_left(node)
@@ -441,7 +464,11 @@ class ChartView(QtWidgets.QWidget):
     def paint_headers(self, painter, header_rects, text_option):
         for index, rect in header_rects.items():
             node = self.model.nodes[index]
-            color = self.context.colors_settings['key', node.key]
+            key = (
+                node.value if
+                self.context.get_setting('use_value_color_for_nodes') else
+                node.key)
+            color = self.context.colors_settings['key', key]
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(QtGui.QColor(color))
             painter.drawRoundedRect(rect, FORKS_XRADIUS, FORKS_XRADIUS)
@@ -561,6 +588,7 @@ class ChartView(QtWidgets.QWidget):
 
     def paint_charts(self, painter, total, event, option):
         charts, totals = self.get_body(event.rect())
+        cursor = self.mapFromGlobal(QtGui.QCursor.pos())
         for index, content_rects in charts.items():
             if not content_rects:
                 continue
@@ -576,8 +604,11 @@ class ChartView(QtWidgets.QWidget):
             for key, data in content_rects.items():
                 rect = data['rect']
                 color = self.context.colors_settings['value', key]
+                color = QtGui.QColor(color)
+                if rect.contains(cursor):
+                    color = color.lighter(115)
                 painter.setPen(QtCore.Qt.NoPen)
-                painter.setBrush(QtGui.QColor(color))
+                painter.setBrush(color)
                 painter.drawRect(rect)
                 painter.setPen(QtGui.QPen())
                 value = formatter(
@@ -598,7 +629,11 @@ class ChartView(QtWidgets.QWidget):
                 data['output_total'],
                 data['maximum'],
                 total)
-            painter.drawText(total_data['rect'], value, option)
+            rect = total_data['rect']
+            painter.setBrush(QtCore.Qt.transparent)
+            if rect.contains(cursor):
+                painter.drawRoundedRect(rect, 5, 5)
+            painter.drawText(rect, value, option)
 
     def paint_horizontal_resizer(self, painter, event):
         painter.setBrush(QtWidgets.QApplication.palette().background())
@@ -665,6 +700,8 @@ class ChartView(QtWidgets.QWidget):
         painter.drawLine(line)
 
     def paint_forks(self, painter, fork_rects, option):
+        sorter = self.context.get_setting('vsort_nodes_method')
+        sorter = partial(TREE_SORTERS[sorter], self.model, self.context)
         for index, rect in fork_rects.items():
             node = self.model.nodes[index]
             text = '-' if node.expanded else '+'
@@ -681,7 +718,7 @@ class ChartView(QtWidgets.QWidget):
             line_x = rect.left() + (FORKS_PADDING / 2)
             start_y = rect.bottom()
             painter.setPen(QtGui.Qt.black)
-            for child in node.children():
+            for child in node.children(sorter):
                 child_rect = self.header_rects.get(child.index)
                 if not child_rect:   # out of frame
                     continue

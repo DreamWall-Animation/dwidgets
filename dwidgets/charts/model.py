@@ -242,7 +242,8 @@ class ChartNode:
         children = self.parent.children()
         return children.index(self) + len(self.parent.outputs())
 
-    def outputs(self):
+    def outputs(self, sorter=None):
+        sorter = sorter or (lambda x: str(x.key))
         return sorted(list(self._outputs.values()), key=lambda x: str(x.key))
 
     def row_count(self):
@@ -266,19 +267,20 @@ class ChartNode:
                 level=self.level + 1))
         return node
 
-    def children(self):
-        return sorted(
-            list(self._children.values()), key=lambda x: str(x.value))
+    def children(self, sorter=None):
+        if sorter is None:
+            return sorted(list(self._children.values()), key=lambda x: x.value)
+        return sorter(self._children.values())
 
-    def flat(self):
+    def flat(self, sorter=None):
         nodes = [self]
-        for child in self.children():
-            nodes.extend(child.flat())
+        for child in self.children(sorter):
+            nodes.extend(child.flat(sorter))
         return nodes
 
-    def all_outputs(self):
+    def all_outputs(self, sorter=None):
         outputs = list(self.outputs())
-        for child in self.flat():
+        for child in self.flat(sorter):
             outputs.extend(child.outputs())
         return outputs
 
