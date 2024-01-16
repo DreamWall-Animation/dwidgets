@@ -31,7 +31,7 @@ def get_total(model, _, nodes):
             for indexes in output.content.values()
             for i in indexes]
         result.append((sum(e.weight for e in entries), node))
-    return [r[1] for r in sorted(result, reverse=True)]
+    return [r[1] for r in sorted(result, reverse=True, key=lambda r: r[0])]
 
 
 def alphabetical(_, __, nodes):

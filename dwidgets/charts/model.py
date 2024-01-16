@@ -137,8 +137,8 @@ class ChartOutput:
         self.key = key
         self.content = defaultdict(list)
 
-    def __repr__(self):
-        return '-' * self.parent.level + f'--> {self.key}'
+    # def __repr__(self):
+    #     return '-' * self.parent.level + f'--> {self.key}'
 
     def is_expanded(self):
         return all(n.expanded for n in self.parents()[:-1])
@@ -213,8 +213,8 @@ class ChartNode:
         self._children = {}
         self._outputs = {}
 
-    def __repr__(self):
-        return '-' * self.level + f' {self.key}: {self.value}'
+    # def __repr__(self):
+    #     return '-' * self.level + f' {self.key}: {self.value}'
 
     def is_expanded(self):
         return all(n.expanded for n in self.parents())
