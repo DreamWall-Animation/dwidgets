@@ -2,7 +2,7 @@ from functools import partial
 from collections import defaultdict
 from PySide2 import QtWidgets, QtCore, QtGui
 from dwidgets.charts.dialog import ChartDetails, ChartDetailsTotal
-from dwidgets.charts.model import ChartModel
+from dwidgets.charts.model import ChartModel, is_straight_schema
 from dwidgets.charts.settings import (
     ChartViewContext,
     OUTPUT_ARROW_RADIUS, TABLE_MINIMUM_WIDTH,
@@ -23,6 +23,7 @@ class ChartView(QtWidgets.QWidget):
         self.model = ChartModel()
         self.context = context or ChartViewContext()
         self.setMouseTracking(True)
+        self.straight_mode = False
         self.header_rects = {}
         self.fork_rects = {}
         self.output_rects = {}
@@ -40,6 +41,7 @@ class ChartView(QtWidgets.QWidget):
         return QtCore.QSize(800, 600)
 
     def set_schema(self, schema, collapsed=False):
+        self.straight_mode = is_straight_schema(schema)
         self.model.set_schema(schema, collapsed)
         self.compute_rects()
 
@@ -184,27 +186,6 @@ class ChartView(QtWidgets.QWidget):
             self.context.branch_settings[branch, 'height'] = height
             self.compute_rects()
             return
-        if action['type'] == 'toggle':
-            node = action['node']
-            if not ctrl_pressed() and not shift_pressed():
-                node.expanded = not node.expanded
-            elif not shift_pressed():
-                self.model.expand_level(node.level, not node.expanded)
-            else:
-                self.model.expand_hierarchy(node, not node.expanded)
-            self.compute_rects()
-            return
-        if action['type'] == 'chart':
-            entry_indexes = action['node'].content[action['key']]
-            entries = [self.model.entries[i] for i in entry_indexes]
-            self.current_action = None
-            return ChartDetails(
-                self.context, action['node'], action['key'], entries,
-                self).exec_()
-        if action['type'] == 'chart_total':
-            return ChartDetailsTotal(
-                self.context, action['node'], action['maximum'],
-                self.model.total(), self.model.entries, self).exec_()
         if action['type'] == 'navigation':
             value = get_value_from_point(self.navigation_slider, pos)
             if action['mode'] == 'min':
@@ -230,6 +211,28 @@ class ChartView(QtWidgets.QWidget):
             self.chart_rects = defaultdict(dict)
             self.repaint()
             return
+
+        self.current_action = None
+        if action['type'] == 'toggle':
+            node = action['node']
+            if not ctrl_pressed() and not shift_pressed():
+                node.expanded = not node.expanded
+            elif not shift_pressed():
+                self.model.expand_level(node.level, not node.expanded)
+            else:
+                self.model.expand_hierarchy(node, not node.expanded)
+            self.compute_rects()
+            return
+        if action['type'] == 'chart':
+            entry_indexes = action['node'].content[action['key']]
+            entries = [self.model.entries[i] for i in entry_indexes]
+            return ChartDetails(
+                self.context, action['node'], action['key'], entries,
+                self).exec_()
+        if action['type'] == 'chart_total':
+            return ChartDetailsTotal(
+                self.context, action['node'], action['maximum'],
+                self.model.total(), self.model.entries, self).exec_()
 
     def compute_rects(self):
         self.output_rects = {}
@@ -603,7 +606,10 @@ class ChartView(QtWidgets.QWidget):
             formatter, suffix = self.get_formatter_and_suffix(output.branch())
             for key, data in content_rects.items():
                 rect = data['rect']
-                color = self.context.colors_settings['value', key]
+                if self.straight_mode:
+                    color = self.context.colors_settings['key', output.key]
+                else:
+                    color = self.context.colors_settings['value', key]
                 color = QtGui.QColor(color)
                 if rect.contains(cursor):
                     color = color.lighter(115)
@@ -620,7 +626,11 @@ class ChartView(QtWidgets.QWidget):
                 k = self.context.translation_settings['value', key]
                 text = f'{k} | {value}'
                 s = QtGui.QStaticText(text).size()
-                if s.width() < rect.width() and s.height() < rect.height():
+                paint_text = (
+                    s.width() < rect.width() and
+                    s.height() < rect.height() and
+                    not self.straight_mode)
+                if paint_text:
                     painter.drawText(rect, text, option)
             total_data = totals[output.index]
             value = formatter(

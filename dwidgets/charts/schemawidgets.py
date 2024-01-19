@@ -37,7 +37,6 @@ class SchemaEditor(QtWidgets.QWidget):
         self.set_words = self.key_list.set_words
         self.set_schema = self.tree_view.set_schema
         self.get_schema = self.tree_view.get_schema
-        self.is_valid = self.tree_view.is_valid
 
     def apply_clicked(self):
         self.tree_view.apply()
@@ -363,11 +362,19 @@ class SchemaTreeView(QtWidgets.QWidget):
             for output in node.outputs():
                 print(output)
 
-    def is_valid(self):
-        return all(
-            bool(node.outputs()) for node in self.tree.flat() if node.level)
-
     def get_schema(self):
+        output_keys = sorted({o.key for o in self.tree.all_outputs()})
+        nodes = self.tree.flat()[1:]
+        # Fill level missing output.
+        for node in nodes:
+            if not node.outputs():
+                print('no output for node', node.key, node.value, 'add key')
+                if output_keys:
+                    for key in output_keys:
+                        node.append(key, key, None)
+                    continue
+                node.append(node.key, node.key, None)
+        self.update_schema()
         return tree_to_schema(self.tree)
 
     def paintEvent(self, event):

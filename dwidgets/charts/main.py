@@ -188,11 +188,6 @@ class ChartWidget(QtWidgets.QWidget):
         self.set_polars_dataframe(dataframe, 'time_spent')
 
     def apply_new_schema(self):
-        if not self.schema.is_valid():
-            return QtWidgets.QMessageBox.critical(
-                self, 'Error', 'All nodes must have outputs',
-                QtWidgets.QMessageBox.Ok, QtWidgets.QMessageBox.Ok)
-
         self.chart.set_schema(self.schema.get_schema())
         self.colors_settings_editor.fill()
         self.deph_settings_editor.deph_settings_model.layoutChanged.emit()
@@ -367,7 +362,7 @@ if __name__ == '__main__':
     preset_folder = os.path.expanduser('~/prodgraph_temp')
     os.makedirs(preset_folder, exist_ok=True)
     file_path = f'{preset_folder}/preset.json'
-
     view = ChartWidget(preset_file_path=file_path, editor=True)
+
     view.show()
     app.exec_()

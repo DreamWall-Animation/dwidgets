@@ -366,3 +366,14 @@ def hierarchize(entries, schema, collapsed=False):
             deph = max((deph, node.level))
 
     return root, deph, nodes, outputs
+
+
+def is_straight_schema(schema):
+    if len(schema) != 1:
+        return False
+    values = list(schema.values())
+    if len(values) != 1:
+        return False
+    if not isinstance(values[0][0], str):
+        return False
+    return values[0][0] == list(schema.keys())[0]
