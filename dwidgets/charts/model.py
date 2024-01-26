@@ -5,7 +5,7 @@ from collections import defaultdict
 
 class ChartEntry:
     def __init__(self, data, weight):
-        self.data = data
+        self.data = {str(k): str(v) for k, v in data.items()}
         self.weight = weight
 
 
