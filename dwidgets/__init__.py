@@ -11,6 +11,7 @@ from dwidgets.retakecanvas.retakecanvas import RetakeCanvas
 from dwidgets.retakecanvas.model import RetakeCanvasModel
 from dwidgets.tag import TagView
 from dwidgets.tilteddates import TiltedDates
+from dwidgets.verticaltab import VerticalTabWidget
 from dwidgets.weightslider import WeightSlider
 from dwidgets.rangeslider import RangeSlider, RangeSliderBar
 from dwidgets.charts.main import ChartWidget
