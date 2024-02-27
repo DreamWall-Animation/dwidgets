@@ -123,6 +123,7 @@ class ChartWidget(QtWidgets.QWidget):
         splitter.setStretchFactor(1, 3)
 
         layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(splitter)
 
     def sizeHint(self):
