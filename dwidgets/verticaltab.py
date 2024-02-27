@@ -55,7 +55,7 @@ class VerticalTabWidget(QtWidgets.QWidget):
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     tab = VerticalTabWidget()
-    tab.add_tab('test', QtWidgets.QTableWidget())
-    tab.add_tab('calendar', QtWidgets.QCalendarWidget())
+    tab.add_tab(QtWidgets.QTableWidget(), 'test')
+    tab.add_tab(QtWidgets.QCalendarWidget(), 'calendar')
     tab.show()
     app.exec_()
