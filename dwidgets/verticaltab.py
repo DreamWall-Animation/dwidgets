@@ -31,7 +31,7 @@ class VerticalTabWidget(QtWidgets.QWidget):
     def current_index(self):
         return self.tab_button_group.checkedId()
 
-    def add_tab(self, name, widget):
+    def add_tab(self, widget, name):
         button = QtWidgets.QPushButton(name)
         button.setCheckable(True)
         button.setFlat(True)
