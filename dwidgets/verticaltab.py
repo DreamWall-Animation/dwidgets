@@ -43,7 +43,8 @@ class VerticalTabWidget(QtWidgets.QWidget):
         self.buttons_layout.insertWidget(self.buttons_layout.count() - 1, button)
         id_ = len(self.tab_button_group.buttons())
         self.tab_button_group.addButton(button, id_)
-        self.buttons[id_].setChecked(True)
+        if id_ == 0:
+            self.buttons[id_].setChecked(True)
 
     def _update(self, *_):
         for i, widget in enumerate(self.widgets):
