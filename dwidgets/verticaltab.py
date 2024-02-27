@@ -12,7 +12,8 @@ class VerticalTabWidget(QtWidgets.QWidget):
         self.buttons = []
         self.widgets = []
 
-        self.widgets_layout = QtWidgets.QVBoxLayout()
+        right_group = QtWidgets.QGroupBox()
+        self.widgets_layout = QtWidgets.QVBoxLayout(right_group)
         self.widgets_layout.setContentsMargins(0, 0, 0, 0)
         self.buttons_layout = QtWidgets.QVBoxLayout()
         self.buttons_layout.setContentsMargins(0, 0, 0, 0)
@@ -21,7 +22,8 @@ class VerticalTabWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.addLayout(self.buttons_layout)
-        layout.addLayout(self.widgets_layout)
+        layout.setSpacing(0)
+        layout.addWidget(right_group)
 
     def current_widget(self):
         if not self.tab_button_group.checkedId():
