@@ -1,5 +1,12 @@
 
-from PySide2 import QtWidgets, QtGui
+from PySide2 import QtWidgets, QtGui, QtCore
+
+
+GROUP_BOX_STYLE = """QGroupBox {
+padding : 3px 3px 3px 3px;
+border : 1px solid gray;
+border-radius: 2px;
+}"""
 
 
 class VerticalTabWidget(QtWidgets.QWidget):
@@ -13,6 +20,7 @@ class VerticalTabWidget(QtWidgets.QWidget):
         self.widgets = []
 
         right_group = QtWidgets.QGroupBox()
+        right_group.setStyleSheet(GROUP_BOX_STYLE)
         self.widgets_layout = QtWidgets.QVBoxLayout(right_group)
         self.widgets_layout.setContentsMargins(0, 0, 0, 0)
         self.buttons_layout = QtWidgets.QVBoxLayout()
@@ -21,6 +29,7 @@ class VerticalTabWidget(QtWidgets.QWidget):
         self.buttons_layout.addStretch(1)
 
         layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(self.buttons_layout)
         layout.setSpacing(0)
         layout.addWidget(right_group)
@@ -34,13 +43,15 @@ class VerticalTabWidget(QtWidgets.QWidget):
         return self.tab_button_group.checkedId()
 
     def add_tab(self, widget, name):
-        button = QtWidgets.QPushButton(name)
+        button = QtWidgets.QPushButton(f'{name} ')
         button.setCheckable(True)
         button.setFlat(True)
+        button.setStyleSheet("text-align:right;")
         self.buttons.append(button)
         self.widgets.append(widget)
         self.widgets_layout.addWidget(widget)
-        self.buttons_layout.insertWidget(self.buttons_layout.count() - 1, button)
+        index = self.buttons_layout.count() - 1
+        self.buttons_layout.insertWidget(index, button)
         id_ = len(self.tab_button_group.buttons())
         self.tab_button_group.addButton(button, id_)
         if id_ == 0:
@@ -51,7 +62,8 @@ class VerticalTabWidget(QtWidgets.QWidget):
 
     def add_section(self, name):
         self.add_separator()
-        label = QtWidgets.QLabel(name)
+        label = QtWidgets.QLabel(f'{name} ')
+        label.setAlignment(QtCore.Qt.AlignRight)
         font = QtGui.QFont()
         font.setBold(True)
         label.setFont(font)
