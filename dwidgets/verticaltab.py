@@ -1,5 +1,5 @@
 
-from PySide2 import QtWidgets
+from PySide2 import QtWidgets, QtGui
 
 
 class VerticalTabWidget(QtWidgets.QWidget):
@@ -45,6 +45,17 @@ class VerticalTabWidget(QtWidgets.QWidget):
         self.tab_button_group.addButton(button, id_)
         if id_ == 0:
             self.buttons[id_].setChecked(True)
+
+    def add_separator(self):
+        self.buttons_layout.insertSpacing(self.buttons_layout.count() - 1, 4)
+
+    def add_section(self, name):
+        self.add_separator()
+        label = QtWidgets.QLabel(name)
+        font = QtGui.QFont()
+        font.setBold(True)
+        label.setFont(font)
+        self.buttons_layout.insertWidget(self.buttons_layout.count() - 1, )
 
     def _update(self, *_):
         for i, widget in enumerate(self.widgets):
