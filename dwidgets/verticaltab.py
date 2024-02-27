@@ -55,7 +55,7 @@ class VerticalTabWidget(QtWidgets.QWidget):
         font = QtGui.QFont()
         font.setBold(True)
         label.setFont(font)
-        self.buttons_layout.insertWidget(self.buttons_layout.count() - 1, )
+        self.buttons_layout.insertWidget(self.buttons_layout.count() - 1, label)
 
     def _update(self, *_):
         for i, widget in enumerate(self.widgets):
