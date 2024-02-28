@@ -93,6 +93,9 @@ class PopupCheckList(QtWidgets.QMenu):
     def checked_items_labels(self):
         return [cb.data for cb in self.checkboxes if cb.isChecked()]
 
+    def unchecked_items_labels(self):
+        return [cb.data for cb in self.checkboxes if not cb.isChecked()]
+
     def all_checked(self):
         return all(cb.isChecked() for cb in self.checkboxes)
 
