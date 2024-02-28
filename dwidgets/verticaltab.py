@@ -33,6 +33,9 @@ class VerticalTabWidget(QtWidgets.QWidget):
         layout.setSpacing(0)
         layout.addWidget(right_group)
 
+    def set_spacing(self, value):
+        self.tab_bar.set_spacing(value)
+
     def current_widget(self):
         if not self.widgets:
             return
