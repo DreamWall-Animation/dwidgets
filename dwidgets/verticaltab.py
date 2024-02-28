@@ -56,7 +56,6 @@ class VerticalTabWidget(QtWidgets.QWidget):
         self.tab_bar.add_section(name)
 
     def _set_index(self, index):
-        print(index)
         for i, widget in enumerate(self.widgets):
             widget.setVisible(index == i)
 
