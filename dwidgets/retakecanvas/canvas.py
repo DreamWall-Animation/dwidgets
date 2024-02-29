@@ -7,7 +7,7 @@ from dwidgets.retakecanvas.model import RetakeCanvasModel
 from dwidgets.retakecanvas.tools import NavigationTool
 from dwidgets.retakecanvas.selection import selection_rect, Selection
 from dwidgets.retakecanvas.shapes import (
-    Circle, Rectangle, Arrow, Stroke, Bitmap, Text)
+    Circle, Rectangle, Arrow, Stroke, Bitmap, Text, Line)
 from dwidgets.retakecanvas.viewport import ViewportMapper
 
 
@@ -305,6 +305,8 @@ def draw_layer(
             draw_bitmap(painter, element, viewportmapper)
         elif isinstance(element, Text):
             draw_text(painter, element, viewportmapper)
+        elif isinstance(element, Line):
+            draw_line(painter, element, viewportmapper)
     painter.setOpacity(1)
     painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceOver)
 
@@ -374,6 +376,22 @@ def draw_shape(painter, shape, drawer, viewportmapper):
         viewportmapper.to_viewport_coords(shape.start),
         viewportmapper.to_viewport_coords(shape.end))
     drawer(rect)
+
+
+def draw_line(painter, line, viewportmapper):
+    if not line.is_valid:
+        return
+    color = QtGui.QColor(line.color)
+    pen = QtGui.QPen(color)
+    pen.setCapStyle(QtCore.Qt.RoundCap)
+    pen.setJoinStyle(QtCore.Qt.MiterJoin)
+    pen.setWidthF(viewportmapper.to_viewport(line.linewidth))
+    painter.setPen(pen)
+    painter.setBrush(color)
+    qline = QtCore.QLineF(
+        viewportmapper.to_viewport_coords(line.start),
+        viewportmapper.to_viewport_coords(line.end))
+    painter.drawLine(qline)
 
 
 def draw_arrow(painter, arrow, viewportmapper):
@@ -449,6 +467,7 @@ def draw_subobjects_selection(painter, selection, viewportmapper):
     painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
     painter.setBrush(QtCore.Qt.yellow)
     painter.setPen(QtCore.Qt.black)
+    print(selection)
     for element in selection:
         if isinstance(element, (QtCore.QPoint, QtCore.QPointF)):
             point = viewportmapper.to_viewport_coords(element)

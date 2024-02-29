@@ -89,6 +89,31 @@ class Circle(Rectangle):
         return rect
 
 
+class Line:
+
+    def __init__(self, start, color, linewidth):
+        self.linewidth = linewidth
+        self.color = color
+        self.start = start
+        self.end = None
+
+    @property
+    def line(self):
+        return QtCore.QLineF(self.start, self.end)
+
+    def handle(self, point):
+        self.end = point
+
+    @property
+    def is_valid(self):
+        return self.end is not None
+
+    def copy(self):
+        line = Line(self.start, self.color, self.linewidth)
+        line.end = self.end
+        return line
+
+
 class Arrow:
 
     def __init__(self, start, color, linewidth):

@@ -3,7 +3,7 @@ from dwidgets.retakecanvas.geometry import get_shape_rect
 from dwidgets.retakecanvas.tools.basetool import NavigationTool
 from dwidgets.retakecanvas.selection import selection_rect, Selection
 from dwidgets.retakecanvas.shapes import (
-    Arrow, Rectangle, Circle, Bitmap, Stroke, Text)
+    Arrow, Rectangle, Circle, Bitmap, Stroke, Text, Line)
 
 
 class MoveTool(NavigationTool):
@@ -112,7 +112,7 @@ def shift_element(element, offset):
     elif isinstance(element, Stroke):
         for point, _ in element.points:
             point -= offset
-    elif isinstance(element, (Arrow, Rectangle, Circle, Text)):
+    elif isinstance(element, (Arrow, Rectangle, Circle, Text, Line)):
         element.start -= offset
         element.end -= offset
     elif isinstance(element, Bitmap):
@@ -189,7 +189,7 @@ def layer_elements_in_rect(layer, rect):
     for element in layer:
         if isinstance(element, Stroke):
             result.extend(p for p, _ in element if rect.contains(p))
-        elif isinstance(element, (Arrow, Rectangle, Circle, Text)):
+        elif isinstance(element, (Arrow, Rectangle, Circle, Text, Line)):
             if rect.contains(element.start):
                 result.append(element.start)
             if rect.contains(element.end):

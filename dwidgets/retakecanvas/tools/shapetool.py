@@ -1,6 +1,6 @@
 
 from PySide2 import QtCore
-from dwidgets.retakecanvas.shapes import Arrow, Rectangle, Circle
+from dwidgets.retakecanvas.shapes import Arrow, Rectangle, Circle, Line
 from dwidgets.retakecanvas.tools.basetool import NavigationTool
 
 
@@ -37,6 +37,28 @@ class ShapeTool(NavigationTool):
             return result
         if self.layerstack.is_locked:
             return QtCore.Qt.ForbiddenCursor
+
+
+class LineTool(ShapeTool):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.layername = 'Line'
+        self.linewidth = 10
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        if self.layerstack.is_locked or self.navigator.space_pressed:
+            return
+        if event.button() != QtCore.Qt.LeftButton:
+            return
+        if self.layerstack.current is None:
+            self.model.add_layer(undo=False, name=self.layername)
+        self.selection.clear()
+        self.shape = Line(
+            start=self.viewportmapper.to_units_coords(event.pos()),
+            color=self.drawcontext.color,
+            linewidth=self.drawcontext.size)
+        self.layerstack.current.append(self.shape)
 
 
 class ArrowTool(ShapeTool):

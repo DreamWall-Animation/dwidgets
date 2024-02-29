@@ -2,7 +2,7 @@
 from PySide2 import QtCore
 from PySide2.QtGui import QPainter
 from dwidgets.retakecanvas.shapes import (
-    Stroke, Arrow, Rectangle, Circle, Bitmap, Text)
+    Stroke, Arrow, Rectangle, Circle, Bitmap, Text, Line)
 from dwidgets.retakecanvas.mathutils import distance_qline_qpoint
 
 UNDOLIMIT = 30
@@ -149,7 +149,7 @@ class LayerStack:
             return
         for layer in reversed(self.layers):
             for element in reversed(layer):
-                if isinstance(element, (Arrow, Rectangle, Text)):
+                if isinstance(element, (Arrow, Rectangle, Text, Line)):
                     for p in (element.start, element.end):
                         if is_point_hover_element(p, point):
                             return p
@@ -170,6 +170,9 @@ class LayerStack:
 
 
 def is_point_hover_element(element, point):
+    if isinstance(point, QtCore.QPointF):
+        point = point.toPoint()
+
     if isinstance(element, (QtCore.QPoint, QtCore.QPointF)):
         rect = QtCore.QRectF(element.x() - 10, element.y() - 10, 20, 20)
         return rect.contains(point)
@@ -178,6 +181,9 @@ def is_point_hover_element(element, point):
     elif isinstance(element, Arrow):
         distance = distance_qline_qpoint(element.line, point)
         return distance <= element.tailwidth
+    elif isinstance(element, Line):
+        distance = distance_qline_qpoint(element.line, point)
+        return distance <= element.linewidth
     elif isinstance(element, Text):
         rect = QtCore.QRectF(element.start, element.end)
         return rect.contains(point)

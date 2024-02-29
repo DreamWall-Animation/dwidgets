@@ -2,7 +2,7 @@ import sys
 import math
 from PySide2 import QtCore
 from dwidgets.retakecanvas.shapes import (
-    Bitmap, Text, Rectangle, Circle, Arrow, Stroke)
+    Bitmap, Text, Rectangle, Circle, Arrow, Stroke, Line)
 
 
 def get_images_rects(baseimage, stackimages, layout=0):
@@ -93,7 +93,7 @@ def get_shape_rect(element, viewportmapper):
     if isinstance(element, Stroke):
         points = [p for p, _ in element]
         return viewportmapper.to_viewport_rect(points_rect(points))
-    elif isinstance(element, (Arrow, Rectangle, Circle, Text)):
+    elif isinstance(element, (Arrow, Rectangle, Circle, Text, Line)):
         rect = QtCore.QRectF(element.start, element.end)
         return viewportmapper.to_viewport_rect(rect)
     elif isinstance(element, Bitmap):

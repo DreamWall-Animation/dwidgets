@@ -2,7 +2,8 @@
 from PySide2 import QtWidgets, QtCore
 from dwidgets.retakecanvas.button import ColorAction
 from dwidgets.retakecanvas.dialog import ColorSelection
-from dwidgets.retakecanvas.shapes import Stroke, Arrow, Rectangle, Circle, Text
+from dwidgets.retakecanvas.shapes import (
+    Stroke, Arrow, Rectangle, Circle, Text, Line)
 
 
 ALIGNMENTS = [
@@ -105,6 +106,7 @@ class ShapeSettings(QtWidgets.QWidget):
             Arrow: self.set_arrow,
             Rectangle: self.set_shape,
             Circle: self.set_shape,
+            Line: self.set_line,
             Text: self.set_text}
         method = methods.get(type(shape))
         if not method:
@@ -174,7 +176,7 @@ class ShapeSettings(QtWidgets.QWidget):
         self.canvas.repaint()
 
     def size_changed(self, value):
-        if not isinstance(self.element, (Rectangle, Circle)):
+        if not isinstance(self.element, (Rectangle, Circle, Line)):
             return
         self.element.linewidth = value
         self.canvas.repaint()
@@ -211,6 +213,19 @@ class ShapeSettings(QtWidgets.QWidget):
         self.bgcolor_row.show()
         self.filled_row.show()
         self.bgopacity_row.show()
+        self.stroke_width_row.hide()
+        self.tail_width_row.hide()
+        self.head_size_row.hide()
+        self.text_size_row.hide()
+        self.text_content_row.hide()
+        self.text_alignment_row.hide()
+
+    def set_line(self, line):
+        self.main_color.set_color(line.color)
+        self.shape_width_row.show()
+        self.bgcolor_row.hide()
+        self.filled_row.hide()
+        self.bgopacity_row.hide()
         self.stroke_width_row.hide()
         self.tail_width_row.hide()
         self.head_size_row.hide()

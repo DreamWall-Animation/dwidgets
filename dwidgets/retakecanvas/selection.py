@@ -1,7 +1,7 @@
 from PySide2 import QtCore
 from dwidgets.retakecanvas.geometry import points_rect
 from dwidgets.retakecanvas.shapes import (
-    Arrow, Rectangle, Circle, Stroke, Bitmap, Text)
+    Arrow, Rectangle, Circle, Stroke, Bitmap, Text, Line)
 
 
 class Selection:
@@ -17,8 +17,7 @@ class Selection:
     def set(self, elements):
         types = (
             QtCore.QPoint, QtCore.QPointF,
-            Arrow, Rectangle, Circle, Stroke, Bitmap, Text)
-
+            Arrow, Rectangle, Circle, Stroke, Bitmap, Text, Line)
         if isinstance(elements, types):
             self.elements = []
             self.element = elements
@@ -87,7 +86,7 @@ def selection_rect(selection):
             points.append(element)
         elif isinstance(element, Stroke):
             points.extend(point for point, _ in element)
-        elif isinstance(element, (Arrow, Rectangle, Circle, Text)):
+        elif isinstance(element, (Arrow, Rectangle, Circle, Text, Line)):
             points.extend((element.start, element.end))
         # elif isinstance(element, Bitmap):
         # TODO:
