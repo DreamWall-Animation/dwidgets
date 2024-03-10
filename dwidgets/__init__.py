@@ -1,5 +1,5 @@
 from dwidgets.azimuth import AzimuthWidget
-from dwidgets.calendar import CalendarDialog, DatePickerButton, date_prompt
+from dwidgets.calendar import CalendarDialog, DatePickerButton, date_prompt, WeekSelector, MonthSelector
 from dwidgets.choicemenu import ChoiceMenu, ChoiceScrollMenu
 from dwidgets.confirm import confirm_dialog
 from dwidgets.dropfilesarea import DropFilesArea

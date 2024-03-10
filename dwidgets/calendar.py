@@ -1,4 +1,5 @@
 import datetime
+from functools import partial
 
 from PySide2 import QtWidgets, QtCore, QtGui
 from PySide2.QtCore import Qt
@@ -131,3 +132,78 @@ def date_prompt(
     if not dialog.exec():
         return
     return dialog.date.toPython()
+
+
+class MonthSelector(QtWidgets.QWidget):
+    month_selected = QtCore.Signal(object)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.date = datetime.datetime.today().date().replace(day=1)
+        self.prev = QtWidgets.QPushButton('◀')
+        self.prev.released.connect(partial(self.set_next, True))
+        self.current_month = QtWidgets.QPushButton(f'{self.date:%B %Y}')
+        self.current_month.released.connect(self.select_month)
+        self.current_month.setFixedWidth(150)
+        self.next = QtWidgets.QPushButton('▶')
+        self.next.released.connect(self.set_next)
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.prev)
+        layout.addWidget(self.current_month)
+        layout.addWidget(self.next)
+
+    def set_next(self, prev=False):
+        if prev:
+            first = self.date.replace(day=1)
+            next_month = first - datetime.timedelta(days=1)
+        else:
+            next_month = self.date.replace(day=28) + datetime.timedelta(days=4)
+        self.set_date(next_month.replace(day=1))
+
+    def get_last_day(self):
+        date = self.date.replace(day=28) + datetime.timedelta(days=4)
+        return date.replace(day=1) - datetime.timedelta(days=1)
+
+    def set_date(self, date):
+        self.date = date
+        self.current_month.setText(f'{self.date:%B %Y}')
+        self.month_selected.emit(self.date)
+
+    def select_month(self):
+        dialog = CalendarDialog(self.date)
+        if dialog.exec_():
+            self.set_date(dialog.date.toPython())
+
+
+class WeekSelector(QtWidgets.QWidget):
+    next_week_pressed = QtCore.Signal()
+    previous_week_pressed = QtCore.Signal()
+    select_week_pressed = QtCore.Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        font = QtGui.QFont()
+        font.setPixelSize(15)
+        font.setBold(True)
+
+        self.previous_week = QtWidgets.QPushButton(
+            '◀', styleSheet='font-size: 32px')
+        self.previous_week.setFixedSize(30, 30)
+        self.previous_week.released.connect(self.previous_week_pressed.emit)
+        self.next_week = QtWidgets.QPushButton(
+            '▶', styleSheet='font-size: 32px')
+        self.next_week.setFixedSize(30, 30)
+        self.next_week.released.connect(self.next_week_pressed.emit)
+        self.week_selector = QtWidgets.QPushButton('Select Date')
+        self.week_selector.setFont(font)
+        self.week_selector.released.connect(self.select_week_pressed.emit)
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.previous_week)
+        layout.addWidget(self.week_selector)
+        layout.addWidget(self.next_week)
