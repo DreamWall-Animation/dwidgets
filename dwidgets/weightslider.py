@@ -11,6 +11,7 @@ BALLON_FILLED_BORDER_COLOR = 'black'
 BALLON_EMPTY_BORDER_COLOR = 'white'
 EMPTY_BACKGROUND_COLOR = None
 BORDER_COLOR = 'darkorange'
+CUTTER_COLOR = 'white'
 GRADUATION_COLOR = 'white'
 BUILTIN_COLORS = [
     "#77dd77",
@@ -113,6 +114,8 @@ class WeightSlider(QtWidgets.QWidget):
         _args_sanity_check(weights, colors, texts, data, comments, graduation)
 
         super().__init__(parent=parent)
+        self.setMouseTracking(True)
+        self.installEventFilter(self)
         self._colors = colors or BUILTIN_COLORS[:len(weights)]
         self._texts = texts or [''] * len(weights)
         self._comments = comments or [''] * len(weights)
@@ -125,6 +128,7 @@ class WeightSlider(QtWidgets.QWidget):
         self._handles = []
         self._graduation_points = []
         self._step_indexes = []
+        self._cut_index = None
         self._handeling_index = None
         self._drag_index = None
         self._index_middle_clicked = None
@@ -135,6 +139,7 @@ class WeightSlider(QtWidgets.QWidget):
         self.ballon_filled_border_color = BALLON_FILLED_BORDER_COLOR
         self.ballon_empty_border_color = BALLON_EMPTY_BORDER_COLOR
         self.empty_background_color = EMPTY_BACKGROUND_COLOR
+        self.cutter_color = CUTTER_COLOR
         self.column_width = None
         self.context_menu = None
         self.display_borders = False
@@ -202,6 +207,7 @@ class WeightSlider(QtWidgets.QWidget):
         weights = _ensure_weights_precisions(weights)
         _args_sanity_check(weights, colors, texts, data, comments, graduation)
         self.ratios = to_ratios(weights)
+        self._cut_index = None
         self._colors = colors or BUILTIN_COLORS[:len(weights)]
         self._texts = texts or [''] * len(weights)
         self._data = data or [None] * len(weights)
@@ -216,6 +222,55 @@ class WeightSlider(QtWidgets.QWidget):
             self._texts[index] = text
         if data:
             self._data[index] = data
+        self.repaint()
+
+    def copy(self):
+        if not self.ratios:
+            return None
+        return {
+            'ratios': self.ratios,
+            'colors': self._colors[:],
+            'texts': self._texts[:],
+            'comments': self._comments[:],
+            'data': self._data[:]}
+
+    def paste(self, data):
+        self._colors = data['colors']
+        self._texts = data['texts']
+        self._comments = data['comments']
+        self._data = data['data']
+        self.ratios = data['ratios']
+        self.update_geometries()
+        self.repaint()
+
+    @_skip_if_not_editable
+    def swap_data(
+            self, index=None, color=None,
+            text=None, data=None, comment=None):
+        if index is None or not self._data:
+            return self.append_weight(
+                color=color, text=text, data=data, comment=comment)
+        self._colors[index] = color
+        self._texts[index] = text
+        self._data[index] = data
+        self._comments[index] = comment
+        self.repaint()
+
+    @_skip_if_not_editable
+    def insert_data(
+            self, cut_index=None, color=None,
+            text=None, data=None, comment=None):
+        if cut_index is None or not self._data:
+            return self.append_weight(
+                color=color, text=text, data=data, comment=comment)
+        insert_index = sum(cut_index) - 1
+        self.ratios = cut_ratios(self.ratios, cut_index[0], self._graduation)
+        self._colors.insert(insert_index, color)
+        self._texts.insert(insert_index, text)
+        self._data.insert(insert_index, data)
+        self._comments.insert(insert_index, comment)
+        self.update_geometries()
+        self.ratios_changed.emit()
         self.repaint()
 
     @_skip_if_not_editable
@@ -251,6 +306,23 @@ class WeightSlider(QtWidgets.QWidget):
         self.update_geometries()
         self.repaint()
 
+    def cut_index_at(self, point):
+        index = self.index_at(point, global_coordinates=False)
+        if index is None:
+            return None
+        center = self._rects[index].center()
+        if self._orientation == QtCore.Qt.Vertical:
+            if point.x() < self.width() // 3:
+                index2 = 0
+            else:
+                index2 = int(point.y() > center.y()) + 1
+        else:
+            if point.y() < self.height() // 3:
+                index2 = 0
+            else:
+                index2 = int(point.x() > center.x()) + 1
+        return index, index2
+
     def index_at(self, point, global_coordinates=True):
         if global_coordinates:
             point = self.mapFromGlobal(point)
@@ -276,23 +348,51 @@ class WeightSlider(QtWidgets.QWidget):
             self.rect(), self.ratios, self._graduation, self._steps,
             self.horizontal)
 
+    def eventFilter(self, _, event):
+        if event.type() == QtCore.QEvent.DragLeave:
+            self._cut_index = None
+            self.repaint()
+        super().eventFilter(_, event)
+
+    @_skip_if_not_editable
     def dragEnterEvent(self, event):
         if event.mimeData().hasColor() and event.mimeData().parent() != self:
             return event.accept()
 
+    @_skip_if_not_editable
     def dropEvent(self, event):
         self._pressed_button = None
         if not self.editable:
             return
         data = base64.b64decode(event.mimeData().data('data').toBase64())
         try:
-            self.append_weight(
-                color=event.mimeData().colorData(),
-                text=event.mimeData().text(),
-                data=json.loads(data) if data else None)
-        except ValueError:
-            QtWidgets.QMessageBox.critical(self, 'Error', 'Too many items set')
+            if self._cut_index is None or not self._data:
+                self.append_weight(
+                    color=event.mimeData().colorData(),
+                    text=event.mimeData().text(),
+                    data=json.loads(data) if data else None)
+            elif not self._cut_index[1]:
+                self.swap_data(
+                    index=self._cut_index[0],
+                    color=event.mimeData().colorData(),
+                    text=event.mimeData().text(),
+                    data=json.loads(data) if data else None)
+            else:
+                self.insert_data(
+                    cut_index=self._cut_index,
+                    color=event.mimeData().colorData(),
+                    text=event.mimeData().text(),
+                    data=json.loads(data) if data else None)
+        except ValueError as e:
+            QtWidgets.QMessageBox.critical(self, 'Error', str(e))
+        self._cut_index = None
+        self.repaint()
         return event.accept()
+
+    def dragMoveEvent(self, event):
+        index = self.cut_index_at(event.pos())
+        self._cut_index = index
+        self.repaint()
 
     def mousePressEvent(self, event):
         self._pressed_button = event.button()
@@ -335,6 +435,7 @@ class WeightSlider(QtWidgets.QWidget):
 
     def mouseReleaseEvent(self, event):
         self._pressed_button = None
+        self._cut_index = None
         if event.button() == QtCore.Qt.LeftButton:
             if self.ballons_visible():
                 index = self.hovered_ballon(event.pos())
@@ -356,7 +457,9 @@ class WeightSlider(QtWidgets.QWidget):
                 self._index_middle_clicked = None
 
     def mouseMoveEvent(self, event):
+        self._cut_index = None
         button = QtCore.Qt.LeftButton
+
         if self._drag_index is not None and self._pressed_button == button:
             mime = QtCore.QMimeData()
             mime.setColorData(self._colors[self._drag_index])
@@ -386,6 +489,7 @@ class WeightSlider(QtWidgets.QWidget):
             index = self.index_at(event.pos(), global_coordinates=False)
             if index is not None:
                 self.setToolTip(self.texts[index])
+            self.repaint()
             return
 
         index = self._handeling_index
@@ -401,8 +505,15 @@ class WeightSlider(QtWidgets.QWidget):
         self.update_geometries()
         self.repaint()
 
-    def leaveEvent(self, event):
+    # def event(self, event):
+    #     print(event)
+    #     super().event(event)
+
+    def leaveEvent(self, _):
         QtWidgets.QApplication.restoreOverrideCursor()
+
+    def drageLeaveEvent(self, _):
+        print('LEAVE')
 
     def paintEvent(self, _):
         painter = QtGui.QPainter(self)
@@ -425,7 +536,9 @@ class WeightSlider(QtWidgets.QWidget):
                 graduations=gp,
                 step_indexes=st,
                 graduation_color=self.graduation_color,
-                orientation=self._orientation)
+                orientation=self._orientation,
+                cut_index=self._cut_index,
+                cutter_color=self.cutter_color)
             if self.ballons_visible():
                 draw_ballons(
                     painter=painter,
@@ -615,12 +728,87 @@ def get_comment_path(position, scale=1):
     return transform.map(path)
 
 
+def draw_cutter(painter, rect, index, color, orientation):
+    color = QtGui.QColor(color)
+    pen = QtGui.QPen(color)
+    pen.setWidth(3)
+    painter.setPen(pen)
+    painter.setBrush(QtCore.Qt.NoBrush)
+    painter.drawRoundedRect(rect, 8, 8)
+
+    color.setAlpha(100)
+    pen.setColor(color)
+    painter.setPen(pen)
+    cutted_rect = build_rect_with_padding(
+        get_cutted_rect(rect, index, orientation), 4)
+    painter.drawRoundedRect(cutted_rect, 8, 8)
+
+    line = get_cutter_line_1(rect, orientation)
+    pen.setStyle(QtCore.Qt.DashLine)
+    painter.setPen(pen)
+    painter.drawLine(line)
+
+    line = get_cutter_line_2(rect, orientation)
+    pen.setStyle(QtCore.Qt.DashLine)
+    painter.setPen(pen)
+    painter.drawLine(line)
+
+
+def get_cutted_rect(rect, index, orientation):
+    if orientation == QtCore.Qt.Vertical:
+        if index == 1:
+            return QtCore.QRect(
+                rect.left() + (rect.width() // 3), rect.top(),
+                rect.width() - (rect.width() // 3), rect.height() // 2)
+        elif index == 2:
+            return QtCore.QRect(
+                rect.left() + (rect.width() // 3),
+                rect.top() + (rect.height() // 2),
+                rect.width() - (rect.width() // 3), rect.height() // 2)
+        elif index == 0:
+            return QtCore.QRect(
+                rect.left(), rect.top(), rect.width() // 3, rect.height())
+    if index == 1:
+        return QtCore.QRect(
+            rect.left(),
+            rect.top() + (rect.height() // 3),
+            rect.width() // 2,
+            rect.height() - (rect.height() // 3))
+    elif index == 2:
+        return QtCore.QRect(
+            rect.left() + rect.width() // 2,
+            rect.top() + (rect.height() // 3),
+            rect.width() // 2, (rect.height() - rect.height() // 3))
+    return QtCore.QRect(
+        rect.left(), rect.top(), rect.width(), rect.height() // 3)
+
+
+def get_cutter_line_1(rect, orientation):
+    if orientation == QtCore.Qt.Vertical:
+        return QtCore.QLine(
+            QtCore.QPoint(rect.width() // 3, rect.center().y()),
+            QtCore.QPoint(rect.right(), rect.center().y()))
+    return QtCore.QLine(
+        QtCore.QPoint(rect.center().x(), rect.height() // 4),
+        QtCore.QPoint(rect.bottom(), rect.center().x()))
+
+
+def get_cutter_line_2(rect, orientation):
+    if orientation == QtCore.Qt.Vertical:
+        return QtCore.QLine(
+            QtCore.QPoint(rect.width() // 3, rect.top()),
+            QtCore.QPoint(rect.width() // 3, rect.bottom()))
+    return QtCore.QLine(
+        QtCore.QPoint(rect.top(), rect.height() // 3),
+        QtCore.QPoint(rect.bottom(), rect.height() // 3))
+
+
 def draw_slider(
         painter, rect, rects, colors, texts, padding, draw_borders,
         border_color, graduations, step_indexes, graduation_color,
-        orientation):
+        orientation, cut_index, cutter_color):
 
-    for r, color, text in zip(rects, colors, texts):
+    for i, (r, color, text) in enumerate(zip(rects, colors, texts)):
         painter.setPen(QtCore.Qt.transparent)
         qcolor = QtGui.QColor(color)
         if orientation == QtCore.Qt.Vertical:
@@ -630,6 +818,10 @@ def draw_slider(
             qcolor.setAlpha(75)
             painter.setBrush(qcolor)
             painter.drawRoundedRect(full_rect, 8, 8)
+            if cut_index is not None and i == cut_index[0]:
+                draw_cutter(
+                    painter, full_rect, cut_index[1], cutter_color,
+                    orientation)
             if text:
                 painter.setPen(QtCore.Qt.black)
                 painter.setBrush(QtCore.Qt.black)
@@ -662,8 +854,9 @@ def draw_slider(
 
 def draw_graduation(
         painter, rect, orientation, points, step_indexes, padding, color):
-    color = QtGui.QColor(color)
-    color.setAlpha(150)
+    if isinstance(color, str):
+        color = QtGui.QColor(color)
+        color.setAlpha(150)
     pen = QtGui.QPen(color)
     painter.setBrush(QtGui.QBrush(color))
     for i, point in enumerate(points):
@@ -923,12 +1116,25 @@ def append_ratio(ratios, graduation):
     return graduate(ratios, graduation)
 
 
-def remove_ratio(ratios, index, graduation):
-    """
-    Remove the ratio at given index and adapt values around.
-    """
+def cut_ratios(ratios, index, graduation):
     weights = to_weights(ratios)
-    mult = 1 - weights[index]
+    weight = weights[index]
+    if weight / 2 < (1 / graduation):
+        raise ValueError("Undividable portion")
+    weight = weight / 2
+    weights[index] = weight
+    weights.insert(index, weight)
+    return graduate(to_ratios(weights), graduation)
+
+
+def remove_ratio(ratios, index, graduation):
+    if len(ratios) == 1:
+        return []
+    weights = to_weights(ratios)
+    weight = weights[index]
     weights.pop(index)
-    weights = [round(w / mult, 5) for w in weights]
+    if index < len(ratios) - 1:
+        weights[index] += weight
+    else:
+        weights[index - 1] += weight
     return graduate(to_ratios(weights), graduation)
