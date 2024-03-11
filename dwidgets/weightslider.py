@@ -228,18 +228,18 @@ class WeightSlider(QtWidgets.QWidget):
         if not self.ratios:
             return None
         return {
-            'ratios': self.ratios,
+            'ratios': self.ratios[:],
             'colors': self._colors[:],
             'texts': self._texts[:],
             'comments': self._comments[:],
             'data': self._data[:]}
 
     def paste(self, data):
-        self._colors = data['colors']
-        self._texts = data['texts']
-        self._comments = data['comments']
-        self._data = data['data']
-        self.ratios = data['ratios']
+        self._colors = data['colors'][:]
+        self._texts = data['texts'][:]
+        self._comments = data['comments'][:]
+        self._data = data['data'][:]
+        self.ratios = data['ratios'][:]
         self.update_geometries()
         self.repaint()
 
@@ -254,6 +254,7 @@ class WeightSlider(QtWidgets.QWidget):
         self._texts[index] = text
         self._data[index] = data
         self._comments[index] = comment
+        self.ratios_changed.emit()
         self.repaint()
 
     @_skip_if_not_editable
@@ -286,6 +287,7 @@ class WeightSlider(QtWidgets.QWidget):
         self._comments.append(comment)
         self.ratios = append_ratio(self.ratios, self._graduation)
         self.update_geometries()
+        self.ratios_changed.emit()
         self.repaint()
 
     @_skip_if_not_editable
