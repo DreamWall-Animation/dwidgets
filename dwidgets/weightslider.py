@@ -570,6 +570,7 @@ class WeightSlider(QtWidgets.QWidget):
         if dialog.exec_() != QtWidgets.QDialog.Accepted:
             return
         self._comments[index] = dialog.comment
+        self.ratios_changed.emit()
 
 
 class CommentDialog(QtWidgets.QDialog):
