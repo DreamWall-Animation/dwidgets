@@ -6,7 +6,7 @@ from PySide2.QtCore import Qt
 from dwidgets.qtutils import move_widget_in_screen
 
 
-EMPTY_LABEL = '-'
+DEFAULT_EMPTY_LABEL = '-'
 
 
 class Presets:
@@ -72,9 +72,10 @@ class Presets:
 
 
 def get_multiple_selection_text(
-        selected_labels, max_labels, included_title=None):
+        selected_labels, max_labels, included_title=None, empty_label=None):
+    empty_label = empty_label or DEFAULT_EMPTY_LABEL
     if not selected_labels or len(selected_labels) == max_labels:
-        text = f'{included_title} (off)' if included_title else EMPTY_LABEL
+        text = f'{included_title} (off)' if included_title else empty_label
     elif len(selected_labels) == 1:
         text = selected_labels[0]
         text = f'{included_title}: {text}' if included_title else text
@@ -315,9 +316,11 @@ class PopupCheckListButton2(QtWidgets.QWidget):
             self, included_title=None, static_title=False, items=None,
             allow_save_presets=False, selection_limit=None, presets_path=None,
             presets_button_id=None, restore_states=True, default=False,
-            save_unchecked_values=False, parent=None):
+            save_unchecked_values=False, empty_label=DEFAULT_EMPTY_LABEL,
+            parent=None):
         super().__init__(parent)
         self.menu_width = None
+        self.empty_label = empty_label
 
         self.model = PopupCheckListModel(
             items=items, selection_limit=selection_limit)
@@ -391,11 +394,12 @@ class PopupCheckListButton2(QtWidgets.QWidget):
 
     def _set_text(self):
         if self.static_title:
-            self.button.setText(self.included_title or EMPTY_LABEL)
+            self.button.setText(self.included_title or self.empty_label)
             return
         labels = self.model.checked_labels()
         text = get_multiple_selection_text(
-            labels, self.model.rowCount(), self.included_title)
+            labels, self.model.rowCount(), self.included_title,
+            self.empty_label)
         self.button.setText(text)
 
     def mousePressEvent(self, event):
