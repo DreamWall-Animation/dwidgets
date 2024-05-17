@@ -53,11 +53,11 @@ class Canvas(QtWidgets.QWidget):
     @disable_if_model_locked
     def dropEvent(self, event):
         paths = [
-            os.path.expandvars(url.path())
+            url.toLocalFile()
             for url in event.mimeData().urls()]
         if not paths:
             self.add_image_layer(paths)
-        images = [QtGui.QImage(p.strip('/\\')) for p in paths]
+        images = [QtGui.QImage(p) for p in paths]
         images = [image for image in images if not image.isNull()]
         for image in images:
             self.model.append_image(image)
