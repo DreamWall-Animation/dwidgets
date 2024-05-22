@@ -36,6 +36,9 @@ class TagView(QtWidgets.QWidget):
         self.left_clicked = False
         self.constrained_height = False
 
+    def sizeHint(self):
+        return QtCore.QSize(200, 60)
+
     @property
     def padding(self):
         return self._padding

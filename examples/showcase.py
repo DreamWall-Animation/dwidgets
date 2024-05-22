@@ -39,13 +39,14 @@ class Window(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(tabwidget)
 
+    def sizeHint(self):
+        return QtCore.QSize(800, 600)
+
 
 class RetakeCanvasShowCase(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
-        print(os.path.exists(f'{os.path.dirname(__file__)}/landscap.avif'))
         image = QtGui.QImage(f'{os.path.dirname(__file__)}/landscap.webp')
-        print(image.isNull())
         self.model = RetakeCanvasModel(image)
         self.canvas = RetakeCanvas(self.model)
         self.canvas.tools_bar.setStyleSheet('background: #666666')
@@ -98,12 +99,16 @@ class TagViewShowCase(QtWidgets.QWidget):
         self.tag_field.setPlaceholderText('Add tags: "tag1 tag2 ..."')
         self.tag_field.returnPressed.connect(self.add_tags)
         self.tag_view = TagView()
+        self.tag_view.setMaximumHeight(300)
         self.tag_view.tags = 'salut', '123', 'rose'
 
         tag_layout = QtWidgets.QVBoxLayout(self)
         tag_layout.addWidget(self.tag_field)
         tag_layout.addWidget(self.tag_view)
         tag_layout.addStretch()
+
+    def sizeHint(self):
+        return QtCore.QSize(250, 300)
 
     def add_tags(self):
         tags = [
@@ -200,6 +205,7 @@ class TiltedDatesShowCase(QtWidgets.QWidget):
         self.dates.font = font
         self.dates.angle = -45
         self.dates.setFixedHeight(300)
+        self.dates.sizeHint = lambda: QtCore.QSize(500, 300)
         self.dates.spacing = 35
         self.index = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.index.setMinimum(0)
@@ -311,4 +317,7 @@ class WeightSliderShowcase(QtWidgets.QWidget):
 app = QtWidgets.QApplication(sys.argv)
 win = Window()
 win.show()
+win.setFixedSize(1280, 700)
+win.setMinimumHeight(300)
+win.setMinimumWidth(300)
 app.exec_()
