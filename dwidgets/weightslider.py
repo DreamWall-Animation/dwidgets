@@ -354,7 +354,7 @@ class WeightSlider(QtWidgets.QWidget):
         if event.type() == QtCore.QEvent.DragLeave:
             self._cut_index = None
             self.repaint()
-        super().eventFilter(_, event)
+        return super().eventFilter(_, event)
 
     @_skip_if_not_editable
     def dragEnterEvent(self, event):

@@ -77,7 +77,10 @@ class TiltedDates(QtWidgets.QWidget):
             else:
                 painter.setBrush(color)
             path = QtGui.QPainterPath()
-            text = d.strftime(self.display_format)
+            try:
+                text = d.strftime(self.display_format)
+            except ValueError:
+                text = 'wrong date string format'
             point = QtCore.QPoint(0, 0)
             path.addText(point, self.font, text)
             transform = QtGui.QTransform()

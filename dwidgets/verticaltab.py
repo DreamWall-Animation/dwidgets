@@ -133,7 +133,7 @@ class TabBar(QtWidgets.QWidget):
                 bottom += self.label_height
             if item['type'] == 'tab':
                 bottom += self.button_height
-                twidth = QtGui.QStaticText(item['label']).size().width() * 1.2
+                twidth = QtGui.QStaticText(item['label']).size().width() * 1.5
                 width = max((width, twidth))
         if not width:
             width = self.sizeHint().width()

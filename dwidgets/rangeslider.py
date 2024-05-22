@@ -79,6 +79,15 @@ class RangeSlider(QtWidgets.QWidget):
         self.bar.high = maximum
         self.bar.repaint()
 
+    def get_low(self):
+        return self.bar.low
+
+    def get_high(self):
+        return self.bar.high
+
+    def get_range(self):
+        return self.get_low(), self.get_high()
+
 
 class RangeSliderBar(QtWidgets.QWidget):
     low_changed = QtCore.Signal(object)

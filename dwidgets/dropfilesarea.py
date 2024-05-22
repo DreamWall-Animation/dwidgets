@@ -30,6 +30,8 @@ def _coordinate_builder(size, spacing, width):
 
 
 class DropFilesArea(QtWidgets.QWidget):
+    files_changed = QtCore.Signal()
+
     def __init__(
             self,
             background_color=None,
@@ -86,6 +88,7 @@ class DropFilesArea(QtWidgets.QWidget):
             if self.hovered_index is None:
                 return
             del self.filepaths[self.hovered_index]
+            self.files_changed.emit()
             self.repaint()
 
     def dragEnterEvent(self, event):
@@ -108,10 +111,13 @@ class DropFilesArea(QtWidgets.QWidget):
             if not self.supported_extensions or
             url.toLocalFile().lower().endswith(
                 tuple(self.supported_extensions))])
+        self.files_changed.emit()
         self.repaint()
 
-    def clear(self):
+    def clear(self, block_signal=False):
         self.filepaths = []
+        if not block_signal:
+            self.files_changed.emit()
         self.repaint()
 
     def set_colors(
