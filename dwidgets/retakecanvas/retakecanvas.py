@@ -148,6 +148,9 @@ class LayerView(QtWidgets.QWidget):
         action = self.layout_types.actions()[self.model.imagestack_layout]
         action.setChecked(True)
 
+    def layer_names(self):
+        return self.model.layerstack.names
+
     def layer_added(self):
         self.model.add_layer()
         self.layerstackview.update_size()
