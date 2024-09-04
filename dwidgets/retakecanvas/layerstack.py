@@ -64,12 +64,14 @@ class LayerStack:
     def current_index(self, value):
         self._current_index = value
 
-    def add(self, name, blend_mode: QPainter.CompositionMode=None, index=None):
+    def add(
+            self, name, blend_mode: QPainter.CompositionMode=None,
+            locked=False, index=None):
         blend_mode = blend_mode or QPainter.CompositionMode_SourceOver
         if index is None:
             index = len(self.layers)
         self.layers.insert(index, [])
-        self.locks.insert(index, False)
+        self.locks.insert(index, locked)
         self.opacities.insert(index, 255)
         self.blend_modes.insert(index, blend_mode)
         self.names.insert(index, name)
