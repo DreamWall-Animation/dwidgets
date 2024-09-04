@@ -428,8 +428,14 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.canvas.repaint()
         self.layerview.sync_view()
 
-    def layer_names(self):
-        return self.model.layerstack.names
+    def layer_names(self, include_hidden=True):
+        if not include_hidden:
+            return self.model.layerstack.names
+        layerstack = self.model.layerstack
+        return [
+            name for name, visible in
+            zip(layerstack.names, layerstack.visibilities)
+            if visible]
 
     def render(self, model):
         return self.canvas.render(model=model)
@@ -516,7 +522,6 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.tools_bar.hide()
         if not keep_layer_view:
             self.left_scroll.hide()
-            self.layerview.hide()
 
     def keyReleaseEvent(self, event):
         return self.canvas.keyReleaseEvent(event)
