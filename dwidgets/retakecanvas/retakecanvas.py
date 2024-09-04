@@ -460,6 +460,11 @@ class RetakeCanvas(QtWidgets.QWidget):
         name: str layer name
         image: qimage
         """
+        if self.model.baseimage is None or self.model.baseimage.isNull():
+            baseimage = QtGui.QImage(QtCore.QSize(
+                image.size()), QtGui.QImage.Format_Alpha8)
+            baseimage.fill(QtCore.Qt.transparent)
+            self.model.set_baseimage(baseimage)
         self.model.selection.clear()
         self.model.add_layer(undo=False, name=name)
         self.layerview.sync_view()
@@ -505,10 +510,10 @@ class RetakeCanvas(QtWidgets.QWidget):
     def disable_retake_mode(self, keep_layer_view=False):
         self.canvas.set_tool(self.tools[self.navigation])
         self.model.locked = True
-        self.left_scroll.hide()
         self.navigation.trigger()
         self.tools_bar.hide()
         if not keep_layer_view:
+            self.left_scroll.hide()
             self.layerview.hide()
 
     def keyReleaseEvent(self, event):
