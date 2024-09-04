@@ -502,13 +502,14 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.tools_bar.show()
         self.navigation.trigger()
 
-    def disable_retake_mode(self):
+    def disable_retake_mode(self, keep_layer_view=False):
         self.canvas.set_tool(self.tools[self.navigation])
         self.model.locked = True
         self.left_scroll.hide()
         self.navigation.trigger()
-        self.layerview.hide()
         self.tools_bar.hide()
+        if not keep_layer_view:
+            self.layerview.hide()
 
     def keyReleaseEvent(self, event):
         return self.canvas.keyReleaseEvent(event)
