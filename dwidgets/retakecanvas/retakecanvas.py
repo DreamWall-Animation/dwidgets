@@ -346,7 +346,9 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.tools_bar.addWidget(spacer)
         self.tools_bar.addAction(self.open)
 
-        settings_layout = QtWidgets.QVBoxLayout()
+        self.settings_widget_label = ToolNameLabel('Tool Options')
+        self.settings_widget = QtWidgets.QWidget()
+        settings_layout = QtWidgets.QVBoxLayout(self.settings_widget)
         default_spacing = settings_layout.spacing()
         settings_layout.setContentsMargins(0, 0, 0, 0)
         settings_layout.setSpacing(0)
@@ -362,8 +364,8 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.left_widget = QtWidgets.QWidget()
         left_layout = QtWidgets.QVBoxLayout(self.left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.addWidget(ToolNameLabel('Tool Options'))
-        left_layout.addLayout(settings_layout)
+        left_layout.addWidget(self.settings_widget_label)
+        left_layout.addWidget(self.settings_widget)
         left_layout.addWidget(self.shape_settings_label)
         left_layout.addWidget(self.shape_settings)
         left_layout.addWidget(self.layerview)
@@ -496,8 +498,8 @@ class RetakeCanvas(QtWidgets.QWidget):
             return
         self.model.layerstack.delete(index)
         self.model.add_undo_state()
-        self.layerstackview.update_size()
-        self.layerstackview.repaint()
+        self.layerview.layerstackview.update_size()
+        self.layerview.layerstackview.repaint()
 
     def clear(self):
         """
@@ -529,6 +531,10 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.layerview.show()
         self.tools_bar.show()
         self.navigation.trigger()
+        self.shape_settings_label.show()
+        self.shape_settings.show()
+        self.settings_widget_label.show()
+        self.settings_widget.show()
 
     def disable_retake_mode(self, keep_layer_view=False):
         self.canvas.set_tool(self.tools[self.navigation])
@@ -537,6 +543,11 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.tools_bar.hide()
         if not keep_layer_view:
             self.left_scroll.hide()
+        else:
+            self.settings_widget_label.hide()
+            self.settings_widget.hide()
+            self.shape_settings_label.hide()
+            self.shape_settings.hide()
 
     def keyReleaseEvent(self, event):
         return self.canvas.keyReleaseEvent(event)
