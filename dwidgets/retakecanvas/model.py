@@ -77,10 +77,10 @@ class RetakeCanvasModel:
         width, height = image.size().width(), image.size().height()
         self.baseimage_wipes = QtCore.QRect(0, 0, width, height)
 
-    def add_layer(self, undo=True, name=None, blend_mode=None):
+    def add_layer(self, undo=True, name=None, blend_mode=None, index=None):
         name = name or 'Layer'
         name = unique_layer_name(name, self.layerstack.names)
-        self.layerstack.add(name, blend_mode=blend_mode)
+        self.layerstack.add(name, blend_mode=blend_mode, index=index)
         if undo:
             self.add_undo_state()
 

@@ -64,14 +64,16 @@ class LayerStack:
     def current_index(self, value):
         self._current_index = value
 
-    def add(self, name, blend_mode: QPainter.CompositionMode=None):
+    def add(self, name, blend_mode: QPainter.CompositionMode=None, index=None):
         blend_mode = blend_mode or QPainter.CompositionMode_SourceOver
-        self.layers.append([])
-        self.locks.append(False)
-        self.opacities.append(255)
-        self.blend_modes.append(blend_mode)
-        self.names.append(name)
-        self.visibilities.append(True)
+        if index is None:
+            index = len(self.layers)
+        self.layers.insert(index, [])
+        self.locks.insert(index, False)
+        self.opacities.insert(index, 255)
+        self.blend_modes.insert(index, blend_mode)
+        self.names.insert(index, name)
+        self.visibilities.insert(index, True)
         self.current_index = len(self.layers) - 1
 
     def duplicate_current(self):

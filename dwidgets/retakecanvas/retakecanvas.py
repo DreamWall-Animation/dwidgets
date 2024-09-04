@@ -461,7 +461,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         return self.add_layer_image(
             name="Pasted image", image=image, center_on_canvas=True)
 
-    def add_layer_image(self, name, image, center_on_canvas=False):
+    def add_layer_image(self, name, image, index=None, center_on_canvas=False):
         """
         Import a qimage as new layer
         name: str layer name
@@ -473,7 +473,7 @@ class RetakeCanvas(QtWidgets.QWidget):
             baseimage.fill(QtCore.Qt.transparent)
             self.model.set_baseimage(baseimage)
         self.model.selection.clear()
-        self.model.add_layer(undo=False, name=name)
+        self.model.add_layer(undo=False, name=name, index=index)
         self.layerview.sync_view()
         rect = QtCore.QRectF(0, 0, image.size().width(), image.size().height())
         if center_on_canvas:
@@ -483,6 +483,12 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.model.add_shape(Bitmap(image, rect))
         self.canvas.repaint()
         self.model.add_undo_state()
+
+    def remove_layer(self, index):
+        self.model.layerstack.delete(index)
+        self.model.add_undo_state()
+        self.layerstackview.update_size()
+        self.layerstackview.repaint()
 
     def clear(self):
         """
