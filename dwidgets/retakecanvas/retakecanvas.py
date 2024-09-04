@@ -461,12 +461,19 @@ class RetakeCanvas(QtWidgets.QWidget):
         return self.add_layer_image(
             name="Pasted image", image=image, center_on_canvas=True)
 
+    def current_index(self):
+        if not self.model:
+            return
+        return self.model.layerstack.current_index
+
     def add_layer_image(self, name, image, index=None, center_on_canvas=False):
         """
         Import a qimage as new layer
         name: str layer name
         image: qimage
         """
+        if not self.model:
+            return
         if self.model.baseimage is None or self.model.baseimage.isNull():
             baseimage = QtGui.QImage(QtCore.QSize(
                 image.size()), QtGui.QImage.Format_Alpha8)
@@ -485,6 +492,8 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.model.add_undo_state()
 
     def remove_layer(self, index):
+        if not self.model:
+            return
         self.model.layerstack.delete(index)
         self.model.add_undo_state()
         self.layerstackview.update_size()
