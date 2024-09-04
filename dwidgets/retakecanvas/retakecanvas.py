@@ -471,6 +471,10 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.canvas.repaint()
         self.model.add_undo_state()
 
+    def clear(self):
+        self.model = RetakeCanvasModel()
+        self.layerview.sync_view()
+        self.canvas.repaint()
 
     def layout_changed(self):
         state = self.model.imagestack_layout == RetakeCanvasModel.STACKED
