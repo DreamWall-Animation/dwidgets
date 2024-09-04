@@ -148,9 +148,6 @@ class LayerView(QtWidgets.QWidget):
         action = self.layout_types.actions()[self.model.imagestack_layout]
         action.setChecked(True)
 
-    def layer_names(self):
-        return self.model.layerstack.names
-
     def layer_added(self):
         self.model.add_layer()
         self.layerstackview.update_size()
@@ -431,6 +428,9 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.canvas.repaint()
         self.layerview.sync_view()
 
+    def layer_names(self):
+        return self.model.layerstack.names
+
     def render(self, model):
         return self.canvas.render(model=model)
 
@@ -452,8 +452,16 @@ class RetakeCanvas(QtWidgets.QWidget):
         image = QtWidgets.QApplication.clipboard().image()
         if not image:
             return
+        return self.add_layer_image(name="Pasted image", image=image)
+
+    def add_layer_image(self, name, image):
+        """
+        Import a qimage as new layer
+        name: str layer name
+        image: qimage
+        """
         self.model.selection.clear()
-        self.model.add_layer(undo=False, name="Pasted image")
+        self.model.add_layer(undo=False, name=name)
         self.layerview.sync_view()
         rect = QtCore.QRectF(0, 0, image.size().width(), image.size().height())
         center = self.canvas.rect().center()
@@ -462,6 +470,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.model.add_shape(Bitmap(image, rect))
         self.canvas.repaint()
         self.model.add_undo_state()
+
 
     def layout_changed(self):
         state = self.model.imagestack_layout == RetakeCanvasModel.STACKED
