@@ -429,7 +429,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.layerview.sync_view()
 
     def layer_names(self, include_hidden=True):
-        if not include_hidden:
+        if include_hidden:
             return self.model.layerstack.names
         layerstack = self.model.layerstack
         return [
