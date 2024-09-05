@@ -353,7 +353,7 @@ class PopupCheckListButton2(QtWidgets.QWidget):
             layout.addWidget(self.presets_dropdown)
 
         self.set_items = self.model.set_items
-        self.set_checked_data = self.model.set_checked_data
+        self.set_checked_data = self._set_checked_data
         self.checked_labels = self.model.checked_labels
         self.checked_data = self.model.checked_data
         self.all_checked = self.model.has_filter_activated
@@ -371,6 +371,10 @@ class PopupCheckListButton2(QtWidgets.QWidget):
         else:
             self.model.check_all(default)
 
+        self._set_text()
+
+    def _set_checked_data(self, data):
+        self.model.set_checked_data(data)
         self._set_text()
 
     def save_states(self, data):
