@@ -13,7 +13,7 @@ class VerticalTabWidget(QtWidgets.QWidget):
     def __init__(self, colors=None, parent=None):
         super().__init__(parent)
         self.tab_bar = TabBar(colors=colors, parent=self)
-        self.tab_bar.index_changed.connect(self._set_index)
+        self.tab_bar.index_changed.connect(self._set_widget_visible)
 
         self.widgets = []
 
@@ -55,12 +55,16 @@ class VerticalTabWidget(QtWidgets.QWidget):
     def add_section(self, name):
         self.tab_bar.add_section(name)
 
-    def _set_index(self, index):
+    def _set_widget_visible(self, index):
         for i, widget in enumerate(self.widgets):
             widget.setVisible(index == i)
 
+    def set_index(self, index):
+        self.tab_bar.index = index
+        self._set_widget_visible(index)
+
     def showEvent(self, event):
-        self._set_index(self.tab_bar.index)
+        self._set_widget_visible(self.tab_bar.index)
         super().showEvent(event)
 
 
