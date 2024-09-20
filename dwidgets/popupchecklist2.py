@@ -230,8 +230,6 @@ class PopupCheckListModel(QtCore.QAbstractListModel):
     def set_items(self, items):
         self.layoutAboutToBeChanged.emit()
         data = self.checked_data()
-        print('>>', data)
-        print('<<', items)
         self.items = items
         self.set_checked_data(data)
         self.layoutChanged.emit()
