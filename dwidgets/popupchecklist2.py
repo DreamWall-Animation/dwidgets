@@ -192,6 +192,9 @@ class PopupCheckListModel(QtCore.QAbstractListModel):
     checked_items_changed = QtCore.Signal(list)
 
     def __init__(self, items=None, selection_limit=None):
+        """
+        items: Tuple[display: str, data: object]
+        """
         super().__init__()
         self.items = items.copy() if items else []
         self.checked = [False] * len(self.items)
@@ -203,22 +206,6 @@ class PopupCheckListModel(QtCore.QAbstractListModel):
 
     def flags(self, _):
         return Qt.ItemIsEnabled | Qt.ItemIsUserCheckable
-
-    # In order to be able to toggle the state clicking on the label as well,
-    # the setData is disabled.
-    # def setData(self, index, value, role):
-    #     if role == Qt.CheckStateRole:
-    #         self.layoutAboutToBeChanged.emit()
-    #         if value == Qt.Checked:
-    #             self.checked[index.row()] = True
-    #             self.append_selected_to_history(index.row())
-    #         else:
-    #             self.checked[index.row()] = False
-    #             self.remove_selected_from_history(index.row())
-    #         self.checked_items_changed.emit(self.checked_data())
-    #         self.layoutChanged.emit()
-    #         return True
-    #     return False
 
     def remove_selected_from_history(self, row):
         if row in self.selection_history:
@@ -243,6 +230,8 @@ class PopupCheckListModel(QtCore.QAbstractListModel):
     def set_items(self, items):
         self.layoutAboutToBeChanged.emit()
         data = self.checked_data()
+        print('>>', data)
+        print('<<', items)
         self.items = items
         self.set_checked_data(data)
         self.layoutChanged.emit()
@@ -293,10 +282,11 @@ class PopupCheckListModel(QtCore.QAbstractListModel):
     def checked_labels(self):
         return [self.items[i][0] for i, v in enumerate(self.checked) if v]
 
-    def check_all(self, state=True):
+    def check_all(self, state=True, emit=True):
         self.layoutAboutToBeChanged.emit()
         self.checked = [state for _ in self.checked]
-        self.checked_items_changed.emit(self.checked_data())
+        if emit:
+            self.checked_items_changed.emit(self.checked_data())
         self.layoutChanged.emit()
 
     def invert(self):
@@ -320,6 +310,7 @@ class PopupCheckListButton2(QtWidgets.QWidget):
             parent=None):
         super().__init__(parent)
         self.menu_width = None
+        self.restore_states = restore_states
         self.empty_label = empty_label
 
         self.model = PopupCheckListModel(
@@ -352,7 +343,6 @@ class PopupCheckListButton2(QtWidgets.QWidget):
         if allow_save_presets:
             layout.addWidget(self.presets_dropdown)
 
-        self.set_items = self.model.set_items
         self.set_checked_data = self._set_checked_data
         self.checked_labels = self.model.checked_labels
         self.checked_data = self.model.checked_data
@@ -361,17 +351,25 @@ class PopupCheckListButton2(QtWidgets.QWidget):
         self.uncheck_all = partial(self.model.check_all, False)
         self.invert = self.model.invert
 
-        if self.presets and restore_states:
+        if self.presets and restore_states and items:
             states = self.presets.get_states(self.presets_button_id)
             if states is not None:
                 self.model.set_checked_data(
                     states, self.save_unchecked_states)
             else:
-                self.model.check_all(default)
+                self.model.check_all(default, emit=False)
         else:
-            self.model.check_all(default)
+            self.model.check_all(default, emit=False)
 
         self._set_text()
+
+    def set_items(self, items):
+        self.model.set_items(items)
+        if not self.restore_states:
+            return
+        states = self.presets.get_states(self.presets_button_id)
+        if states is not None:
+            self.model.set_checked_data(states, self.save_unchecked_states)
 
     def _set_checked_data(self, data):
         self.model.set_checked_data(data)
