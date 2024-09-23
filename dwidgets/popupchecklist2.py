@@ -363,7 +363,7 @@ class PopupCheckListButton2(QtWidgets.QWidget):
 
     def set_items(self, items):
         self.model.set_items(items)
-        if not self.restore_states:
+        if not self.restore_states or not self.presets:
             return
         states = self.presets.get_states(self.presets_button_id)
         if states is not None:
