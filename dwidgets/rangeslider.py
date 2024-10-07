@@ -7,6 +7,7 @@ DEFAULT_MAX = 100
 
 class RangeSlider(QtWidgets.QWidget):
     range_changed = QtCore.Signal(object, object)
+    released = QtCore.Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -25,6 +26,7 @@ class RangeSlider(QtWidgets.QWidget):
         self.high_changed = self.bar.high_changed
         self.bar.low_changed.connect(self.set_low)
         self.bar.high_changed.connect(self.set_high)
+        self.bar.released.connect(self.released.emit)
 
         self.range = self.bar.range
         self.set_full_range = self.bar.set_full_range
@@ -92,6 +94,7 @@ class RangeSlider(QtWidgets.QWidget):
 class RangeSliderBar(QtWidgets.QWidget):
     low_changed = QtCore.Signal(object)
     high_changed = QtCore.Signal(object)
+    released = QtCore.Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -204,6 +207,7 @@ class RangeSliderBar(QtWidgets.QWidget):
 
     def mouseReleaseEvent(self, event):
         self._mousepressed = False
+        self.released.emit()
         return super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
