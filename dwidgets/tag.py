@@ -143,6 +143,8 @@ class TagView(QtWidgets.QWidget):
                 self.setFixedHeight(height)
             else:
                 self.setMinimumHeight(height)
+        else:
+            self.setFixedHeight(10)
 
     def resizeEvent(self, _):
         self.recompute_items()

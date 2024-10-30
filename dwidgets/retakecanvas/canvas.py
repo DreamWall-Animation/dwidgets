@@ -274,6 +274,10 @@ class Canvas(QtWidgets.QWidget):
             images = self.model.imagestack + [model.baseimage]
             for image, rect in zip(images, rects):
                 rect = viewportmapper.to_viewport_rect(rect)
+                image = image.scaled(
+                    rect.size().toSize(),
+                    QtCore.Qt.KeepAspectRatio,
+                    QtCore.Qt.SmoothTransformation)
                 painter.drawImage(rect, image)
         else:
             images = list(reversed(model.imagestack))
@@ -467,7 +471,6 @@ def draw_subobjects_selection(painter, selection, viewportmapper):
     painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
     painter.setBrush(QtCore.Qt.yellow)
     painter.setPen(QtCore.Qt.black)
-    print(selection)
     for element in selection:
         if isinstance(element, (QtCore.QPoint, QtCore.QPointF)):
             point = viewportmapper.to_viewport_coords(element)
