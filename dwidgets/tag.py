@@ -4,6 +4,7 @@ DEFAULT_PADDING = 5
 DEFAULT_CELL_PADDING = 0
 DEFAULT_SPACING = 3
 DEFAULT_BG_COLOR = '#556699'
+DEFAULT_HIGHLIGHT_COLOR = '#667799'
 DEFAULT_CROSS_COLOR = '#7788AA'
 DEFAULT_HOVER_CROSS_COLOR = '#99CCDD'
 DEFAULT_TEXT_STYLE = (
@@ -17,6 +18,7 @@ class TagView(QtWidgets.QWidget):
     def __init__(
             self,
             bg_color=None,
+            highlight_color=None,
             cross_color=None,
             hover_cross_color=None,
             spacing=None):
@@ -25,11 +27,13 @@ class TagView(QtWidgets.QWidget):
         self._tags = []
         self._items = []
         self._texts = []
+        self._highlighted_tags = []
         self._textstyle = DEFAULT_TEXT_STYLE
         self._padding = DEFAULT_PADDING
         self._cell_padding = DEFAULT_CELL_PADDING
         self._spacing = spacing or DEFAULT_SPACING
         self._bg_color = bg_color or DEFAULT_BG_COLOR
+        self._highlight_color = highlight_color or DEFAULT_HIGHLIGHT_COLOR
         self._cross_color = cross_color or DEFAULT_CROSS_COLOR
         self._hover_cross_color = (
             hover_cross_color or DEFAULT_HOVER_CROSS_COLOR)
@@ -85,6 +89,15 @@ class TagView(QtWidgets.QWidget):
         self.repaint()
 
     @property
+    def hightlight_color(self):
+        return self._hightlight_color
+
+    @hightlight_color.setter
+    def hightlight_color(self, color):
+        self._hightlight_color = color
+        self.repaint()
+
+    @property
     def cross_color(self):
         return self._cross_color
 
@@ -129,6 +142,16 @@ class TagView(QtWidgets.QWidget):
             for t in self._tags]
         self.recompute_items()
 
+    @property
+    def highlighted_tags(self):
+        return self._highlighted_tags
+
+    @highlighted_tags.setter
+    def highlighted_tags(self, tags):
+        self._highlighted_tags = list(tags)
+        self.recompute_items()
+        self.repaint()
+
     def recompute_items(self):
         rect = grow_rect(self.rect(), -self.padding)
         self._items = get_items(
@@ -168,11 +191,14 @@ class TagView(QtWidgets.QWidget):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         cursor = self.mapFromGlobal(QtGui.QCursor.pos())
-        iterator = zip(self._texts, self._items)
-        for t, (itemrect, textrect, crossrect) in iterator:
+        iterator = zip(self._tags, self._texts, self._items)
+        for tag, t, (itemrect, textrect, crossrect) in iterator:
+            bg_color = (
+                self._highlight_color if
+                tag in self._highlighted_tags else self._bg_color)
             painter.setPen(QtCore.Qt.transparent)
             roundness = itemrect.height() / 2
-            painter.setBrush(QtGui.QColor(self._bg_color))
+            painter.setBrush(QtGui.QColor(bg_color))
             painter.drawRoundedRect(itemrect, roundness, roundness)
             hover = crossrect.contains(cursor)
             if hover:
@@ -185,7 +211,7 @@ class TagView(QtWidgets.QWidget):
             x = textrect.center().x() - (t.size().width() / 2) + roundness * .7
             y = textrect.center().y() - (t.size().height() / 2)
             painter.drawStaticText(x, y, t)
-            pen = QtGui.QPen(QtGui.QColor(self._bg_color))
+            pen = QtGui.QPen(QtGui.QColor(bg_color))
             crossrect = mult_rect(crossrect, 0.5)
             pen.setWidthF(crossrect.height() * 0.3)
             painter.setPen(pen)
