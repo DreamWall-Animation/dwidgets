@@ -6,8 +6,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 
 from dwidgets import (
-    AzimuthWidget, CalendarDialog, DatePickerButton, DropFilesArea,
-    MonthSelector, PopupCheckListButton2, RetakeCanvas, RetakeCanvasModel,
+    AzimuthWidget, CalendarDialog, CornerEditor, DatePickerButton,
+    DropFilesArea, MonthSelector, PopupCheckListButton2, RetakeCanvas,
     RangeSlider, TagView, TiltedDates, VerticalTabWidget, WeekSelector,
     WeightSlider)
 
@@ -25,6 +25,7 @@ class Window(QtWidgets.QWidget):
         tabwidget.add_tab(PopupCheckListButton2ShowCase(), 'PopupCheckListButton2')
         tabwidget.add_tab(RetakeCanvasShowCase(), 'RetakeCanvas')
         tabwidget.add_tab(TagViewShowCase(), 'TagView')
+        tabwidget.add_tab(CornerEditor(), 'CornerEditor')
 
         tabwidget.add_separator()
         tabwidget.add_section('Dates')

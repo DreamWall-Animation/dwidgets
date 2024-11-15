@@ -133,7 +133,9 @@ class ToolNameLabel(QtWidgets.QWidget):
         self.setFixedHeight(self.sizeHint().height())
 
     def sizeHint(self):
-        return self.static_text.size().toSize()
+        return QtCore.QSize(
+            self.static_text.size().toSize().width(),
+            self.static_text.size().toSize().height() * 2)
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
@@ -144,7 +146,8 @@ class ToolNameLabel(QtWidgets.QWidget):
         painter.setPen(QtCore.Qt.transparent)
         painter.drawRect(event.rect())
         painter.setPen(pen)
-        painter.drawStaticText(10, 0, self.static_text)
+        y = (self.rect().height() / 2) - (self.static_text.size().height() / 2)
+        painter.drawStaticText(10, y, self.static_text)
 
 
 class Garbage(QtWidgets.QAbstractButton):
