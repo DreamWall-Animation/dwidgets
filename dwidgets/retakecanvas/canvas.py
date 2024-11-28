@@ -239,12 +239,14 @@ class Canvas(QtWidgets.QWidget):
 
         return image
 
-    def paintEvent(self, _):
+    def paintEvent(self, event):
         if not self.model.baseimage:
             return
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         try:
+            painter.setPen(QtCore.Qt.black)
+            painter.drawRect(event.rect())
             painter.setBrush(QtCore.Qt.black)
             painter.setPen(QtCore.Qt.transparent)
             painter.drawRect(self.rect())
