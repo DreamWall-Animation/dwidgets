@@ -8,7 +8,7 @@ from dwidgets.retakecanvas.tools import NavigationTool
 from dwidgets.retakecanvas.selection import selection_rect, Selection
 from dwidgets.retakecanvas.shapes import (
     Circle, Rectangle, Arrow, Stroke, Bitmap, Text, Line)
-from dwidgets.retakecanvas.viewport import ViewportMapper
+from dwidgets.retakecanvas.viewport import ViewportMapper, set_zoom
 
 
 def disable_if_model_locked(method):
@@ -22,6 +22,7 @@ def disable_if_model_locked(method):
 class Canvas(QtWidgets.QWidget):
     isUpdated = QtCore.Signal()
     selectionChanged = QtCore.Signal()
+    zoomChanged = QtCore.Signal()
 
     def __init__(self, model, parent=None):
         super().__init__(parent)
@@ -86,6 +87,7 @@ class Canvas(QtWidgets.QWidget):
             self.model.imagestack,
             self.model.imagestack_layout)
         self.model.viewportmapper.focus(rect)
+        self.zoomChanged.emit()
         self.repaint()
 
     def enterEvent(self, _):
@@ -164,7 +166,11 @@ class Canvas(QtWidgets.QWidget):
 
     def wheelEvent(self, event):
         self.tool.wheelEvent(event)
+        self.zoomChanged.emit()
         self.repaint()
+
+    def set_zoom(self, factor):
+        set_zoom(self.model.viewportmapper, factor, self.mapFromGlobal(QtGui.QCursor.pos()))
 
     @disable_if_model_locked
     def set_tool(self, tool):

@@ -51,6 +51,9 @@ class ViewportMapper():
         self.zoom -= self.zoom * factor
         self.zoom = max(self.zoom, .025)
 
+    def set_zoom(self, factor):
+        self.zoom = factor
+
     def center_on_point(self, units_center):
         """Given current zoom and viewport size, set the origin point."""
         self.origin = QtCore.QPointF(
@@ -65,3 +68,22 @@ class ViewportMapper():
             self.zoom *= 0.7  # lower zoom to add some breathing space
         self.zoom = max(self.zoom, .1)
         self.center_on_point(units_rect.center())
+
+
+def zoom(viewportmapper, factor, reference):
+    abspoint = viewportmapper.to_units_coords(reference)
+    if factor > 0:
+        viewportmapper.zoomin(abs(factor))
+    else:
+        viewportmapper.zoomout(abs(factor))
+    relcursor = viewportmapper.to_viewport_coords(abspoint)
+    vector = relcursor - reference
+    viewportmapper.origin = viewportmapper.origin + vector
+
+
+def set_zoom(viewportmapper, factor, reference):
+    abspoint = viewportmapper.to_units_coords(reference)
+    viewportmapper.zoom = factor
+    relcursor = viewportmapper.to_viewport_coords(abspoint)
+    vector = relcursor - reference
+    viewportmapper.origin = viewportmapper.origin + vector

@@ -202,6 +202,81 @@ class LayerView(QtWidgets.QWidget):
         return self._washer_opacity.value()
 
 
+class ZoomLabel(QtWidgets.QWidget):
+    def __init__(self, canvas, model, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(75, 25)
+        self.model = model
+        self.canvas = canvas
+        self.clicked = False
+        self.hovered = False
+        self.setMouseTracking(True)
+
+    def show_menu(self):
+        menu = QtWidgets.QMenu()
+        for size in (0.25, 0.5, 1, 1.5, 2, 3):
+            action = QtWidgets.QAction(f'{round(size * 100)}%', self)
+            action.size = size
+            menu.addAction(action)
+        action = menu.exec_(self.mapToGlobal(self.rect().bottomLeft()))
+        if action:
+            self.canvas.set_zoom(action.size)
+
+    def enterEvent(self, event):
+        self.hovered = True
+        self.repaint()
+
+    def mouseMoveEvent(self, event):
+        self.hovered = self.rect().contains(event.pos())
+        self.repaint()
+
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            self.clicked = True
+            self.repaint()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            self.show_menu()
+            self.clicked = False
+            self.repaint()
+
+    def leaveEvent(self, event):
+        self.hovered = False
+        self.repaint()
+
+    def set_model(self, model):
+        self.model = model
+        self.repaint()
+
+    def paintEvent(self, _):
+        painter = QtGui.QPainter(self)
+
+        options = QtWidgets.QStyleOptionToolButton()
+        options.initFrom(self)
+        options.rect = self.rect()
+        options.text = f'{round(self.model.viewportmapper.zoom * 100)}%'
+        options.features = (
+            QtWidgets.QStyleOptionToolButton.HasMenu)
+        options.arrowType = QtCore.Qt.DownArrow
+
+        if self.clicked:
+            options.state = QtWidgets.QStyle.State_Sunken
+        elif self.hovered:
+            options.state = QtWidgets.QStyle.State_MouseOver
+            rect = self.rect()
+            rect.setWidth(rect.width() - 1)
+            rect.setHeight(rect.height() - 1)
+            painter.drawRect(rect)
+
+        self.style().drawComplexControl(
+            QtWidgets.QStyle.CC_ToolButton,
+            options, painter, self)
+
+        painter.drawText(self.rect(), QtCore.Qt.AlignCenter, options.text)
+        painter.end()
+
+
 class LeftScrollView(QtWidgets.QScrollArea):
     def __init__(self, child):
         super().__init__()
@@ -224,6 +299,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.canvas = Canvas(self.model)
         self.canvas.selectionChanged.connect(self.update_shape_settings_view)
         self.canvas.isUpdated.connect(self.layerview.sync_view)
+        self.canvas.zoomChanged.connect(self.zoom_changed)
 
         self.undo_action = QtWidgets.QAction(icon('undo.png'), '', self)
         self.undo_action.triggered.connect(self.undo)
@@ -279,6 +355,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.wipes.setEnabled(False)
         self.wipes.triggered.connect(self.set_tool)
         self.wipes.tool = tools.ArrowTool
+        self.zoom = ZoomLabel(self.canvas, self.model)
         self.open = QtWidgets.QAction(icon('open.png'), '', self)
         self.open.triggered.connect(self.call_open)
 
@@ -298,6 +375,16 @@ class RetakeCanvas(QtWidgets.QWidget):
         set_shortcut('T', self, self.text.trigger)
         set_shortcut('A', self, self.arrow.trigger)
         set_shortcut('Tab', self, self.toggle_panel)
+        k = QtCore.Qt.Key_Period | QtCore.Qt.KeypadModifier
+        set_shortcut(k, self, partial(self.canvas.set_zoom, 0.25))
+        k = QtCore.Qt.Key_0 | QtCore.Qt.KeypadModifier
+        set_shortcut(k, self, partial(self.canvas.set_zoom, 0.5))
+        k = QtCore.Qt.Key_1 | QtCore.Qt.KeypadModifier
+        set_shortcut(k, self, partial(self.canvas.set_zoom, 1))
+        k = QtCore.Qt.Key_2 | QtCore.Qt.KeypadModifier
+        set_shortcut(k, self, partial(self.canvas.set_zoom, 1.5))
+        k = QtCore.Qt.Key_3 | QtCore.Qt.KeypadModifier
+        set_shortcut(k, self, partial(self.canvas.set_zoom, 2))
 
         kwargs = dict(canvas=self.canvas, model=self.model)
         self.tools = {
@@ -347,6 +434,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.tools_bar.addSeparator()
         self.tools_bar.addActions(self.tools_group.actions())
         self.tools_bar.addWidget(spacer)
+        self.tools_bar.addWidget(self.zoom)
         self.tools_bar.addAction(self.open)
 
         self.settings_widget_label = ToolNameLabel('Tool Options')
@@ -394,6 +482,9 @@ class RetakeCanvas(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.splitter)
         self.navigation.trigger()
+
+    def zoom_changed(self):
+        self.zoom.repaint()
 
     def do_delete(self):
         if self.model.layerstack.is_locked:
@@ -571,6 +662,7 @@ class RetakeCanvas(QtWidgets.QWidget):
     def set_model(self, model):
         model = model or RetakeCanvasModel()
         self.model = model
+        self.zoom.set_model(model)
         self.layerview.set_model(model)
         self.canvas.set_model(model)
         self.main_settings.set_model(model)

@@ -1,4 +1,5 @@
 from PySide2 import QtCore
+from dwidgets.retakecanvas.viewport import zoom
 
 
 class BaseTool:
@@ -118,14 +119,3 @@ class NavigationTool(BaseTool):
             return QtCore.Qt.OpenHandCursor
         if space and left:
             return QtCore.Qt.ClosedHandCursor
-
-
-def zoom(viewportmapper, factor, reference):
-    abspoint = viewportmapper.to_units_coords(reference)
-    if factor > 0:
-        viewportmapper.zoomin(abs(factor))
-    else:
-        viewportmapper.zoomout(abs(factor))
-    relcursor = viewportmapper.to_viewport_coords(abspoint)
-    vector = relcursor - reference
-    viewportmapper.origin = viewportmapper.origin + vector
