@@ -295,8 +295,11 @@ class RetakeCanvas(QtWidgets.QWidget):
     def __init__(self, model=None, parent=None):
         super().__init__(parent=parent)
         self.model = model or RetakeCanvasModel()
+        self.central_widget = QtWidgets.QWidget()
 
-        self.layerview = LayerView(self.model)
+        self.fullscreen_window = None
+
+        self.layerview = LayerView(self.model, parent=self)
         self.layerview.edited.connect(self.repaint)
         self.layerview.layoutChanged.connect(self.layout_changed)
         self.layerview.comparingRemoved.connect(self.remove_comparing)
@@ -364,32 +367,43 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.open = QtWidgets.QAction(icon('open.png'), '', self)
         self.open.triggered.connect(self.call_open)
 
-        set_shortcut('CTRL+Z', self, self.undo)
-        set_shortcut('CTRL+Y', self, self.redo)
-        set_shortcut('F', self, self.canvas.reset)
-        set_shortcut('CTRL+V', self, self.paste)
-        set_shortcut('CTRL+D', self, self.model.selection.clear)
-        set_shortcut('DEL', self, self.do_delete)
-        set_shortcut('M', self, self.move_a.trigger)
-        set_shortcut('B', self, self.freedraw.trigger)
-        set_shortcut('E', self, self.eraser.trigger)
-        set_shortcut('S', self, self.selection_a.trigger)
-        set_shortcut('L', self, self.line.trigger)
-        set_shortcut('R', self, self.rectangle.trigger)
-        set_shortcut('C', self, self.circle.trigger)
-        set_shortcut('T', self, self.text.trigger)
-        set_shortcut('A', self, self.arrow.trigger)
-        set_shortcut('Tab', self, self.toggle_panel)
-        k = QtCore.Qt.Key_Period | QtCore.Qt.KeypadModifier
-        set_shortcut(k, self, partial(self.canvas.set_zoom, 0.25))
-        k = QtCore.Qt.Key_0 | QtCore.Qt.KeypadModifier
-        set_shortcut(k, self, partial(self.canvas.set_zoom, 0.5))
-        k = QtCore.Qt.Key_1 | QtCore.Qt.KeypadModifier
-        set_shortcut(k, self, partial(self.canvas.set_zoom, 1))
-        k = QtCore.Qt.Key_2 | QtCore.Qt.KeypadModifier
-        set_shortcut(k, self, partial(self.canvas.set_zoom, 1.5))
-        k = QtCore.Qt.Key_3 | QtCore.Qt.KeypadModifier
-        set_shortcut(k, self, partial(self.canvas.set_zoom, 2))
+        set_shortcut('CTRL+Z', self.central_widget, self.undo)
+        set_shortcut('CTRL+Y', self.central_widget, self.redo)
+        set_shortcut('F', self.central_widget, self.canvas.reset)
+        set_shortcut('CTRL+V', self.central_widget, self.paste)
+        set_shortcut('CTRL+D', self.central_widget, self.model.selection.clear)
+        set_shortcut('DEL', self.central_widget, self.do_delete)
+        set_shortcut('M', self.central_widget, self.move_a.trigger)
+        set_shortcut('B', self.central_widget, self.freedraw.trigger)
+        set_shortcut('E', self.central_widget, self.eraser.trigger)
+        set_shortcut('S', self.central_widget, self.selection_a.trigger)
+        set_shortcut('L', self.central_widget, self.line.trigger)
+        set_shortcut('R', self.central_widget, self.rectangle.trigger)
+        set_shortcut('C', self.central_widget, self.circle.trigger)
+        set_shortcut('T', self.central_widget, self.text.trigger)
+        set_shortcut('A', self.central_widget, self.arrow.trigger)
+        set_shortcut('Tab', self.central_widget, self.toggle_panel)
+        set_shortcut('F11', self.central_widget, self.switch_fullscreen)
+        set_shortcut(
+            QtCore.Qt.Key_Period | QtCore.Qt.KeypadModifier,
+            self.central_widget,
+            partial(self.canvas.set_zoom, 0.25))
+        set_shortcut(
+            QtCore.Qt.Key_0 | QtCore.Qt.KeypadModifier,
+            self.central_widget,
+            partial(self.canvas.set_zoom, 0.5))
+        set_shortcut(
+            QtCore.Qt.Key_1 | QtCore.Qt.KeypadModifier,
+            self.central_widget,
+            partial(self.canvas.set_zoom, 1))
+        set_shortcut(
+            QtCore.Qt.Key_2 | QtCore.Qt.KeypadModifier,
+            self.central_widget,
+            partial(self.canvas.set_zoom, 1.5))
+        set_shortcut(
+            QtCore.Qt.Key_3 | QtCore.Qt.KeypadModifier,
+            self.central_widget,
+            partial(self.canvas.set_zoom, 2))
 
         kwargs = dict(canvas=self.canvas, model=self.model)
         self.tools = {
@@ -483,9 +497,13 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 2)
 
-        layout = QtWidgets.QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self.central_widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.splitter)
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.addWidget(self.central_widget)
         self.navigation.trigger()
 
     def zoom_changed(self):
@@ -681,3 +699,32 @@ class RetakeCanvas(QtWidgets.QWidget):
 
     def toggle_panel(self):
         self.left_scroll.setVisible(not self.left_scroll.isVisible())
+
+    def switch_fullscreen(self):
+        if self.fullscreen_window is None:
+            self.central_widget.setParent(None)
+            self.layout.removeWidget(self.central_widget)
+            self.fullscreen_window = FullscreenWindow(self)
+            self.fullscreen_window.setCentralWidget(self.central_widget)
+            self.fullscreen_window.showFullScreen()
+            self.central_widget.setFocus(QtCore.Qt.MouseFocusReason)
+        else:
+            self.exit_fullscreen()
+
+    def exit_fullscreen(self):
+        self.central_widget.setParent(None)
+        self.fullscreen_window.takeCentralWidget()
+        self.layout.addWidget(self.central_widget)
+        self.fullscreen_window.close()
+        self.fullscreen_window = None
+        self.canvas.setFocus()
+
+
+class FullscreenWindow(QtWidgets.QMainWindow):
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
+
+    def closeEvent(self, event):
+        self.parent.exit_fullscreen()
+        super().closeEvent(event)
