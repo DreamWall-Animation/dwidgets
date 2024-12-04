@@ -268,13 +268,17 @@ class ZoomLabel(QtWidgets.QWidget):
             rect.setWidth(rect.width() - 1)
             rect.setHeight(rect.height() - 1)
             painter.drawRect(rect)
-
-        self.style().drawComplexControl(
-            QtWidgets.QStyle.CC_ToolButton,
-            options, painter, self)
-
-        painter.drawText(self.rect(), QtCore.Qt.AlignCenter, options.text)
-        painter.end()
+        try:
+            self.style().drawComplexControl(
+                QtWidgets.QStyle.CC_ToolButton,
+                options, painter, self)
+        except RuntimeError:
+            # Embed in some application, the style() is deleted and try to
+            # reach it crash the entire app.
+            pass
+        finally:
+            painter.drawText(self.rect(), QtCore.Qt.AlignCenter, options.text)
+            painter.end()
 
 
 class LeftScrollView(QtWidgets.QScrollArea):
@@ -296,6 +300,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.layerview.edited.connect(self.repaint)
         self.layerview.layoutChanged.connect(self.layout_changed)
         self.layerview.comparingRemoved.connect(self.remove_comparing)
+
         self.canvas = Canvas(self.model)
         self.canvas.selectionChanged.connect(self.update_shape_settings_view)
         self.canvas.isUpdated.connect(self.layerview.sync_view)
