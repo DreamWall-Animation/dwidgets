@@ -269,7 +269,7 @@ class ZoomLabel(QtWidgets.QWidget):
             rect.setHeight(rect.height() - 1)
             painter.drawRect(rect)
         try:
-            self.style().drawComplexControl(
+            QtWidgets.QApplication.style().drawComplexControl(
                 QtWidgets.QStyle.CC_ToolButton,
                 options, painter, self)
         except RuntimeError:
