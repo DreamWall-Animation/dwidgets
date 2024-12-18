@@ -7,6 +7,7 @@ class ScrollMessageBox(QtWidgets.QMessageBox):
             self, text, title=None, parent=None, buttons_and_roles=None,
             *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
+        self.clicked_role = None
 
         if title:
             self.setWindowTitle(title)
@@ -20,9 +21,8 @@ class ScrollMessageBox(QtWidgets.QMessageBox):
 
         if buttons_and_roles:
             for label, role in buttons_and_roles:
-                role = role or QtWidgets.QMessageBox.NoRole
                 button = self.addButton(label, role)
-                button.clicked.connect(partial(self.setResult, role))
+                button.clicked.connect(partial(self.set_role, role))
         else:
             self.setButtonText(1, 'Close')
 
@@ -38,6 +38,9 @@ class ScrollMessageBox(QtWidgets.QMessageBox):
     def text_to_clipboard(self):
         clip = QtWidgets.QApplication.clipboard()
         clip.setText(self._text)
+
+    def set_role(self, role):
+        self.clicked_role = role
 
 
 if __name__ == '__main__':
