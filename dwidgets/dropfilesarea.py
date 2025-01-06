@@ -1,4 +1,4 @@
-
+import tempfile
 from PySide2 import QtWidgets, QtGui, QtCore
 
 
@@ -76,12 +76,12 @@ class DropFilesArea(QtWidgets.QWidget):
             rect = QtCore.QRect(top, left, *self.item_size)
             if rect.contains(event.pos()):
                 self.hovered_index = i
-                self.repaint()
+                self.update()
                 self.setToolTip(filename)
                 return
         self.hovered_index = None
         self.setToolTip('')
-        self.repaint()
+        self.update()
 
     def mouseReleaseEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
@@ -89,7 +89,26 @@ class DropFilesArea(QtWidgets.QWidget):
                 return
             del self.filepaths[self.hovered_index]
             self.files_changed.emit()
-            self.repaint()
+            self.update()
+        if event.button() == QtCore.Qt.RightButton:
+            self.call_context_menu(self.mapToGlobal(event.pos()))
+
+    def call_context_menu(self, point):
+        clipboard = QtWidgets.QApplication.clipboard()
+        if not clipboard.image():
+            return
+        action = QtWidgets.QAction('Paste image', self)
+        menu = QtWidgets.QMenu(self)
+        menu.addAction(action)
+        action = menu.exec_(point)
+        if not action:
+            return
+
+        filepath = f'{tempfile.NamedTemporaryFile().name}.png'
+        clipboard.image().save(filepath, format='png', quality=100)
+        self.filepaths.append(filepath)
+        self.files_changed.emit()
+        self.update()
 
     def dragEnterEvent(self, event):
         mimedata = event.mimeData()
@@ -112,13 +131,13 @@ class DropFilesArea(QtWidgets.QWidget):
             url.toLocalFile().lower().endswith(
                 tuple(self.supported_extensions))])
         self.files_changed.emit()
-        self.repaint()
+        self.update()
 
     def clear(self, block_signal=False):
         self.filepaths = []
         if not block_signal:
             self.files_changed.emit()
-        self.repaint()
+        self.update()
 
     def set_colors(
             self,
@@ -129,7 +148,7 @@ class DropFilesArea(QtWidgets.QWidget):
         self.background_color = background_color or DEFAULT_BACKGROUND_COLOR
         self.border_color = border_color or DEFAULT_BORDER_COLOR
         self.text_color = text_color or DEFAULT_TEXT_COLOR
-        self.repaint()
+        self.update()
 
     def paintEvent(self, _):
         painter = QtGui.QPainter(self)
