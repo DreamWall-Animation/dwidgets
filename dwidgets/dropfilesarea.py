@@ -2,14 +2,14 @@ import tempfile
 from PySide2 import QtWidgets, QtGui, QtCore
 
 
-DEFAULT_BACKGROUND_COLOR = QtCore.Qt.transparent
+DEFAULT_BACKGROUND_COLOR = QtGui.QColor(0, 0, 0, 40)
 DEFAULT_BORDER_COLOR = QtCore.Qt.white
 DEFAULT_TEXT_COLOR = QtCore.Qt.black
 DEFAULT_CROSS_BACKGROUND_COLOR = QtCore.Qt.black
 DEFAULT_CROSS_TEXT_COLOR = QtCore.Qt.white
 DEFAULT_ITEM_SIZE = 60, 60
 DEFAULT_ITEM_SPACING = 13
-BORDER_WIDTH = 3
+BORDER_WIDTH = 1.5
 DELETER_RADIUS = 15
 TEXT_HEIGHT_SQUARE = 15
 MARGINS = 10, 10, 10, 10
@@ -155,15 +155,15 @@ class DropFilesArea(QtWidgets.QWidget):
         painter.setBrush(QtGui.QColor(self.background_color))
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
         pen = QtGui.QPen(QtGui.QColor(self.border_color))
-        pen.setWidth(BORDER_WIDTH)
-        pen.setStyle(QtCore.Qt.DashLine)
+        pen.setWidthF(BORDER_WIDTH)
+        pen.setDashPattern([BORDER_WIDTH * 2, BORDER_WIDTH * 2.5])
         painter.setPen(pen)
         border_rect = QtCore.QRectF(
             self.rect().left() + (BORDER_WIDTH / 2),
             self.rect().top() + (BORDER_WIDTH / 2),
             self.rect().width() - BORDER_WIDTH,
             self.rect().height() - BORDER_WIDTH)
-        painter.drawRoundedRect(border_rect, 20, 20)
+        painter.drawRoundedRect(border_rect, 4, 4)
         if not self.filepaths:
             painter.setPen(QtGui.QColor(self.text_color))
             painter.setBrush(QtCore.Qt.NoBrush)
