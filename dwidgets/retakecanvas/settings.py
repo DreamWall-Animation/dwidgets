@@ -15,6 +15,7 @@ class _Row(QtWidgets.QWidget):
     def __init__(self, text, textwidth, widget, parent=None):
         super().__init__(parent=parent)
         self.text = QtWidgets.QLabel(text)
+        self.text.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         self.text.setFixedWidth(textwidth)
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -85,6 +86,8 @@ class ShapeSettings(QtWidgets.QWidget):
         self.bgopacity_row = _Row('Background Opacity: ', size, self.bgopacity)
 
         layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.main_color_row)
         layout.addWidget(self.filled_row)
         layout.addWidget(self.bgcolor_row)
@@ -303,6 +306,8 @@ class GeneralSettings(QtWidgets.QWidget):
         self.linewidth.setValue(self.model.drawcontext.size)
         self.linewidth.valueChanged.connect(self.set_linewidth)
         layout = QtWidgets.QFormLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         layout.addRow('Main color:', self.color)
         layout.addRow('Linewidth:', self.linewidth)
 
@@ -337,6 +342,7 @@ class SmoothDrawSettings(QtWidgets.QWidget):
         self.slider.setValue(tool.buffer_lenght)
         self.slider.valueChanged.connect(self.buffer_changed)
         form = QtWidgets.QFormLayout(self)
+        form.setSpacing(0)
         form.addRow('Buffer lenght', self.slider)
 
     def buffer_changed(self, value):
@@ -359,6 +365,7 @@ class ArrowSettings(QtWidgets.QWidget):
         self.slider2.valueChanged.connect(self.change_tail)
 
         form = QtWidgets.QFormLayout(self)
+        form.setSpacing(0)
         form.addRow('Head size', self.slider1)
         form.addRow('Tail width', self.slider2)
 
@@ -388,6 +395,7 @@ class FillableShapeSettings(QtWidgets.QWidget):
         self.bgopacity.setEnabled(state)
 
         form = QtWidgets.QFormLayout(self)
+        form.setSpacing(0)
         form.addRow('', self.filled)
         form.addRow('Background color', self.bgcolor)
         form.addRow('Background opacity', self.bgopacity)

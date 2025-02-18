@@ -206,6 +206,7 @@ class Canvas(QtWidgets.QWidget):
         model = model or self.model
         viewportmapper = viewportmapper or ViewportMapper()
         baseimage = model.baseimage
+
         if not baseimage:
             self.draw_empty(painter)
             return

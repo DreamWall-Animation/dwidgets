@@ -322,6 +322,10 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.move_a.setCheckable(True)
         self.move_a.tool = tools.MoveTool
         self.move_a.triggered.connect(self.set_tool)
+        self.transform = QtWidgets.QAction(icon('transform.png'), '', self)
+        self.transform.setCheckable(True)
+        self.transform.tool = tools.TransformTool
+        self.transform.triggered.connect(self.set_tool)
         self.selection_a = QtWidgets.QAction(icon('selection.png'), '', self)
         self.selection_a.setCheckable(True)
         self.selection_a.tool = tools.SelectionTool
@@ -414,6 +418,7 @@ class RetakeCanvas(QtWidgets.QWidget):
             self.eraser: tools.EraserTool(**kwargs),
             self.smoothdraw: tools.SmoothDrawTool(**kwargs),
             self.line: tools.LineTool(**kwargs),
+            self.transform: tools.TransformTool(**kwargs),
             self.rectangle: tools.RectangleTool(**kwargs),
             self.circle: tools.CircleTool(**kwargs),
             self.arrow: tools.ArrowTool(**kwargs),
@@ -423,6 +428,7 @@ class RetakeCanvas(QtWidgets.QWidget):
         self.tools_group = QtWidgets.QActionGroup(self)
         self.tools_group.addAction(self.navigation)
         self.tools_group.addAction(self.move_a)
+        self.tools_group.addAction(self.transform)
         self.tools_group.addAction(self.selection_a)
         self.tools_group.addAction(self.freedraw)
         self.tools_group.addAction(self.smoothdraw)

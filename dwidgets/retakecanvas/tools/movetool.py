@@ -90,7 +90,11 @@ class MoveTool(NavigationTool):
             point = self.viewportmapper.to_viewport_coords(self.element_hover)
             painter.drawEllipse(point.x() - 20, point.y() - 20, 40, 40)
             return
-        rect = get_shape_rect(self.element_hover, self.viewportmapper)
+        if isinstance(self.element_hover, Selection):
+            rect = selection_rect(self.element_hover)
+            rect = self.viewportmapper.to_viewport_rect(rect)
+        else:
+            rect = get_shape_rect(self.element_hover, self.viewportmapper)
         old_opacity = painter.opacity()
         painter.setOpacity(.5)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, False)

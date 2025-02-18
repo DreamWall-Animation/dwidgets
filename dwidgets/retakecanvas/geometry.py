@@ -94,7 +94,11 @@ def get_shape_rect(element, viewportmapper):
         points = [p for p, _ in element]
         return viewportmapper.to_viewport_rect(points_rect(points))
     elif isinstance(element, (Arrow, Rectangle, Circle, Text, Line)):
-        rect = QtCore.QRectF(element.start, element.end)
+        l = min((element.start.x(), element.end.x()))
+        t = min((element.start.y(), element.end.y()))
+        w = max((element.start.x(), element.end.x())) - l
+        h = max((element.start.y(), element.end.y())) - t
+        rect = QtCore.QRectF(l, t, w, h)
         return viewportmapper.to_viewport_rect(rect)
     elif isinstance(element, Bitmap):
         rect = QtCore.QRectF(element.rect)
