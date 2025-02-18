@@ -8,8 +8,8 @@ from PySide2 import QtCore, QtGui, QtWidgets
 
 
 class LayerStackView(QtWidgets.QWidget):
-    ITEM_HEIGHT = 30
-    PADDING = 10
+    ITEM_HEIGHT = 25
+    PADDING = 5
     current_changed = QtCore.Signal()
 
     def __init__(self, model, parent=None):
@@ -19,6 +19,7 @@ class LayerStackView(QtWidgets.QWidget):
         self.setMinimumWidth(200)
         self.visibility_pixmap = pixmap('visibility.png')
         self.current_item_pixmap = pixmap('current.png')
+        self.solo_item_pixmap = pixmap('opacity2.png')
         self.opacity_bg_pixmap = pixmap('opacity1.png')
         self.opacity_fg_pixmap = pixmap('opacity2.png')
         self.locker_open_pixmap = pixmap('locker2.png')
@@ -122,6 +123,9 @@ class LayerStackView(QtWidgets.QWidget):
             return False
         _, index = self.get_handle_infos(event.pos())
         if self.handle_mode == 'current' and index == self.handle_index:
+            if self.layerstack.current_index == index:
+                self.layerstack.solo = (
+                    index if self.layerstack.solo != index else None)
             self.layerstack.current_index = index
             self.current_changed.emit()
             self.release()
@@ -230,6 +234,7 @@ class LayerStackView(QtWidgets.QWidget):
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
         iterator = enumerate(zip((reversed(self.rects())), self.layerstack))
         painter.setPen(QtCore.Qt.transparent)
         color = QtGui.QColor(QtCore.Qt.black)
@@ -250,26 +255,29 @@ class LayerStackView(QtWidgets.QWidget):
                 background_color = QtGui.QColor(QtCore.Qt.yellow)
                 background_color.setAlpha(35)
                 painter.setBrush(background_color)
-                painter.setPen(QtCore.Qt.transparent)
-                painter.drawRect(rect)
-                painter.setBrush(QtCore.Qt.transparent)
-                cellrect = grow_rect(self.current_item_rect(row), -3).toRect()
+            painter.setPen(QtCore.Qt.transparent)
+            painter.drawRect(rect)
+            painter.setBrush(QtCore.Qt.transparent)
+            cellrect = grow_rect(self.current_item_rect(row), -6).toRect()
+            if i == self.layerstack.solo:
+                painter.drawPixmap(cellrect, self.solo_item_pixmap)
+            elif i == self.layerstack.current_index:
                 painter.drawPixmap(cellrect, self.current_item_pixmap)
             # Draw draw visible.
-            cellrect = grow_rect(self.visibility_rect(row), -3).toRect()
-            painter.setPen(QtCore.Qt.black)
+            cellrect = grow_rect(self.visibility_rect(row), -2).toRect()
+            painter.setPen(QtCore.Qt.NoPen)
             color = QtGui.QColor(QtCore.Qt.black)
             color.setAlpha(33)
             painter.setBrush(color)
             painter.drawRoundedRect(cellrect, 4, 4)
             if visible:
-                cellrect = grow_rect(cellrect, -3).toRect()
+                cellrect = grow_rect(cellrect, -2).toRect()
                 painter.setPen(QtCore.Qt.transparent)
                 painter.setBrush(QtCore.Qt.transparent)
                 painter.drawPixmap(cellrect, self.visibility_pixmap)
             # Draw draw locker.
-            cellrect = grow_rect(self.lock_rect(row), -3).toRect()
-            painter.setPen(QtCore.Qt.black)
+            cellrect = grow_rect(self.lock_rect(row), -2).toRect()
+            painter.setPen(QtCore.Qt.NoPen)
             color = QtGui.QColor(QtCore.Qt.black)
             color.setAlpha(33)
             painter.setBrush(color)

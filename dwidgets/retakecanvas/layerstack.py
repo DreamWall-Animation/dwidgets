@@ -44,6 +44,7 @@ class LayerStack:
         self.opacities = []
         self.blend_modes = []
         self.visibilities = []
+        self.solo = None
 
         self.current_index = None
         self.undostack = []
@@ -168,6 +169,15 @@ class LayerStack:
             self.locks,
             self.visibilities,
             self.opacities).__iter__()
+
+    def __getitem__(self, index):
+        return (
+            self.layers[index],
+            self.names[index],
+            self.blend_modes[index],
+            self.locks[index],
+            self.visibilities[index],
+            self.opacities[index])
 
     def __len__(self):
         return len(self.layers)

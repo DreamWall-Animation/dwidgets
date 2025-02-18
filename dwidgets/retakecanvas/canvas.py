@@ -238,6 +238,12 @@ class Canvas(QtWidgets.QWidget):
             painter.setBrush(color)
             painter.drawRect(viewportmapper.to_viewport_rect(baseimage_rect))
 
+        if model.layerstack.solo is not None:
+            layer, _, blend_mode, _, visible, opacity = model.layerstack[
+                model.layerstack.solo]
+            draw_layer(painter, layer, blend_mode, opacity, viewportmapper)
+            return image
+
         for layer, _, blend_mode, _, visible, opacity in model.layerstack:
             if not visible:
                 continue
