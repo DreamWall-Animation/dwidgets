@@ -593,7 +593,7 @@ class RetakeCanvas(QtWidgets.QWidget):
 
     def add_layer_image(
             self, name, image, locked=False,
-            index=None, center_on_canvas=False):
+            index=None, blend_mode=None, center_on_canvas=False):
         """
         Import a qimage as new layer
         name: str layer name
@@ -607,7 +607,9 @@ class RetakeCanvas(QtWidgets.QWidget):
             baseimage.fill(QtCore.Qt.transparent)
             self.model.set_baseimage(baseimage)
         self.model.selection.clear()
-        self.model.add_layer(undo=False, name=name, locked=locked, index=index)
+        self.model.add_layer(
+            undo=False, name=name, locked=locked,
+            blend_mode=blend_mode, index=index)
         self.layerview.sync_view()
         rect = QtCore.QRectF(0, 0, image.size().width(), image.size().height())
         if center_on_canvas:
