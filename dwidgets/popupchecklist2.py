@@ -436,6 +436,7 @@ class PopupCheckListButton2(QtWidgets.QWidget):
         data = self.presets.get_preset(self.presets_button_id, name)
         self.model.set_checked_data(data)
         self.save_states(data)
+        self._set_text()
         self.checked_items_changed.emit(self.model.checked_data())
 
     def save_preset(self):
