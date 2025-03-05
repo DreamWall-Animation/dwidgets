@@ -170,7 +170,10 @@ class Canvas(QtWidgets.QWidget):
         self.repaint()
 
     def set_zoom(self, factor):
-        set_zoom(self.model.viewportmapper, factor, self.mapFromGlobal(QtGui.QCursor.pos()))
+        set_zoom(
+            self.model.viewportmapper,
+            factor,
+            self.mapFromGlobal(QtGui.QCursor.pos()))
 
     @disable_if_model_locked
     def set_tool(self, tool):
