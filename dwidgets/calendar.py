@@ -91,8 +91,8 @@ class DatePickerButton(QtWidgets.QPushButton):
         self.date_changed.emit()
         self.dates_menu.close()
 
-    def set_dates(self):
-        self.date = self.calendar.selectedDate().toPython()
+    def set_dates(self, date=None):
+        self.date = date or self.calendar.selectedDate().toPython()
         if self.displaytime:
             time = f'{self.datetime:%d/%m/%Y %Hh%M}'
         else:
