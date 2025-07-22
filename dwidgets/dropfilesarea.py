@@ -120,7 +120,6 @@ class DropFilesArea(QtWidgets.QWidget):
         accept = any(
             url.path().lower().endswith(tuple(self.supported_extensions))
             for url in mimedata.urls())
-
         if accept:
             event.accept()
 
