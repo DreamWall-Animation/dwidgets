@@ -1,5 +1,5 @@
 from PySide2 import QtCore, QtGui
-from dwidgets.retakecanvas.geometry import grow_rect
+from dwidgets.qtutils import grow_rect
 from dwidgets.retakecanvas.mathutils import distance_qline_qpoint
 from dwidgets.retakecanvas.model import RetakeCanvasModel
 from dwidgets.retakecanvas.tools.basetool import NavigationTool

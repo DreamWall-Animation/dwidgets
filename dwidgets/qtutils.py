@@ -1,4 +1,4 @@
-from PySide2 import QtWidgets
+from PySide2 import QtWidgets, QtCore
 
 
 def move_widget_in_screen(window):
@@ -12,3 +12,13 @@ def move_widget_in_screen(window):
         screen_geometry.top(),
         min(window.y(), screen_geometry.bottom() - window.height()))
     window.move(x, y)
+
+
+def grow_rect(rect, value):
+    if rect is None:
+        return None
+    return QtCore.QRectF(
+        rect.left() - value,
+        rect.top() - value,
+        rect.width() + (value * 2),
+        rect.height() + (value * 2))

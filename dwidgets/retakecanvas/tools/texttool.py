@@ -1,6 +1,7 @@
 
 from PySide2 import QtCore, QtGui
-from dwidgets.retakecanvas.geometry import grow_rect, get_shape_rect
+from dwidgets.qtutils import grow_rect
+from dwidgets.retakecanvas.geometry import get_shape_rect
 from dwidgets.retakecanvas.shapes import Text
 from dwidgets.retakecanvas.tools.shapetool import ShapeTool
 

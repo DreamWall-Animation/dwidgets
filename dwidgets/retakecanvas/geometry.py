@@ -68,16 +68,6 @@ def set_grid_layout(viewport_rects):
     return
 
 
-def grow_rect(rect, value):
-    if rect is None:
-        return None
-    return QtCore.QRectF(
-        rect.left() - value,
-        rect.top() - value,
-        rect.width() + (value * 2),
-        rect.height() + (value * 2))
-
-
 def points_rect(points):
     left, top = sys.maxsize, sys.maxsize
     right, bottom = -sys.maxsize, -sys.maxsize

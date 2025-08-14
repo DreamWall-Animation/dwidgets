@@ -1,4 +1,5 @@
 from PySide2 import QtWidgets, QtCore, QtGui
+from dwidgets.qtutils import grow_rect
 
 DEFAULT_PADDING = 5
 DEFAULT_CELL_PADDING = 0
@@ -257,16 +258,6 @@ def get_items(rect, statictexts, spacing, cell_padding):
         x += width + spacing + (2 * cell_padding)
 
     return item_text_cross_rects
-
-
-def grow_rect(rect, value):
-    if rect is None:
-        return None
-    return QtCore.QRectF(
-        rect.left() - value,
-        rect.top() - value,
-        rect.width() + (value * 2),
-        rect.height() + (value * 2))
 
 
 def mult_rect(rect, value):

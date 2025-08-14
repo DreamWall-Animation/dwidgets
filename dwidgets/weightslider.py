@@ -2,6 +2,7 @@ import base64
 import json
 from PySide2 import QtWidgets, QtCore, QtGui
 import random
+from dwidgets.qtutils import grow_rect
 
 
 DEFAULT_PADDING = 1.5
@@ -975,16 +976,6 @@ def build_slider_graduations(rect, ratios, graduation, steps, horizontal=True):
         index += 1
 
     return points, step_indexes
-
-
-def grow_rect(rect, value):
-    if rect is None:
-        return None
-    return QtCore.QRectF(
-        rect.left() - value,
-        rect.top() - value,
-        rect.width() + (value * 2),
-        rect.height() + (value * 2))
 
 
 def build_rect_with_padding(rect, padding):

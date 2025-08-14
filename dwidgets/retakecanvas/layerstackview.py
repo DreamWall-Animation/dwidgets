@@ -1,10 +1,11 @@
-
 import os
+
+from PySide2 import QtCore, QtGui, QtWidgets
+
+from dwidgets.qtutils import grow_rect
 from dwidgets.retakecanvas.dialog import OpacityDialog, RenameDialog
-from dwidgets.retakecanvas.geometry import grow_rect
 from dwidgets.retakecanvas.qtutils import pixmap
 from dwidgets.retakecanvas.shapes import Bitmap
-from PySide2 import QtCore, QtGui, QtWidgets
 
 
 class LayerStackView(QtWidgets.QWidget):
