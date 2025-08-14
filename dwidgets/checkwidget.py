@@ -3,9 +3,9 @@ from dwidgets.qtutils import grow_rect
 
 
 class CheckWidget(QtWidgets.QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, state=True, parent=None):
         super().__init__(parent)
-        self.state = False
+        self.state = state
 
     def mouseReleaseEvent(self, event):
         if event.button() != QtCore.Qt.LeftButton:
