@@ -59,7 +59,7 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
         return
     choice = dialog.choice
     """
-    def __init__(self, choices, labels=None, parent=None):
+    def __init__(self, choices, labels=None, title=None, parent=None):
         super().__init__(parent)
 
         self.choices = choices
@@ -79,6 +79,8 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(1, 1, 1, 1)
         layout.setSpacing(1)
+        if title:
+            layout.addWidget(QtWidgets.QLabel(title))
         layout.addWidget(self.search_edit)
         layout.addWidget(self.items_list)
 
@@ -92,7 +94,11 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
         search_text = self.search_edit.text().lower()
         self.items_list.clear()
         for choice, label in zip(self.choices, self.labels):
-            if search_text not in choice and search_text not in label.lower():
+            try:
+                text_in_choice = search_text in choice
+            except TypeError:
+                text_in_choice = False
+            if not text_in_choice and search_text not in label.lower():
                 continue
             item = QtWidgets.QListWidgetItem(label)
             item.setData(Qt.UserRole, choice)
