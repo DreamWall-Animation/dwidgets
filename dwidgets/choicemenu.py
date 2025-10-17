@@ -52,16 +52,13 @@ class ListWidget(QtWidgets.QListWidget):
         return super().keyPressEvent(event)
 
 
-class ChoiceScrollMenu(QtWidgets.QMenu):
-    """
-    dialog = ChoiceScrollMenu(choices, parent=self)
-    if not dialog.exec_(QtGui.QCursor().pos()):
-        return
-    choice = dialog.choice
-    """
-    def __init__(self, choices, labels=None, title=None, parent=None):
-        super().__init__(parent)
+class ChoiceScrollMixin:
+    def setup_ui(self, choices, labels=None, title=None, multi=False):
 
+        self.setMinimumWidth(200)
+        self.setMinimumHeight(400)
+
+        self.multi = multi
         self.choices = choices
         self.labels = labels or choices
         self.choice = None
@@ -71,18 +68,19 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
         self.search_edit.textChanged.connect(self.filter_choices)
 
         self.items_list = ListWidget()
+        if self.multi:
+            self.items_list.setSelectionMode(
+                QtWidgets.QAbstractItemView.ExtendedSelection)
         self.items_list.itemClicked.connect(self.item_clicked)
         self.items_list.return_pressed.connect(self.handle_return)
 
-        self.setMinimumWidth(200)
-        self.setMinimumHeight(400)
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(1, 1, 1, 1)
-        layout.setSpacing(1)
+        self.main_layout = QtWidgets.QVBoxLayout(self)
+        self.main_layout.setContentsMargins(1, 1, 1, 1)
+        self.main_layout.setSpacing(1)
         if title:
-            layout.addWidget(QtWidgets.QLabel(title))
-        layout.addWidget(self.search_edit)
-        layout.addWidget(self.items_list)
+            self.main_layout.addWidget(QtWidgets.QLabel(title))
+        self.main_layout.addWidget(self.search_edit)
+        self.main_layout.addWidget(self.items_list)
 
         self.filter_choices()
 
@@ -105,8 +103,9 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
             self.items_list.addItem(item)
 
     def item_clicked(self, item):
-        self.choice = item.data(Qt.UserRole)
-        self.close()
+        if not self.multi:
+            self.choice = item.data(Qt.UserRole)
+            self.close()
 
     def handle_return(self):
         current_row = self.items_list.currentRow() or 0
@@ -116,3 +115,47 @@ class ChoiceScrollMenu(QtWidgets.QMenu):
         self.items_list.setFocus()
         if not self.items_list.currentRow():
             self.items_list.setCurrentRow(0)
+
+
+class ChoiceScrollMenu(QtWidgets.QMenu, ChoiceScrollMixin):
+    """
+    dialog = ChoiceScrollMenu(choices, parent=self)
+    if not dialog.exec_(QtGui.QCursor().pos()):
+        return
+    choice = dialog.choice
+    """
+    def __init__(
+            self, choices, labels=None, title=None, multi=False, parent=None):
+        super().__init__(parent=parent)
+        self.setup_ui(choices=choices, labels=labels, title=title, multi=multi)
+
+
+class ChoiceScrollDialog(QtWidgets.QDialog, ChoiceScrollMixin):
+    """
+    dialog = ChoiceScrollDialog(choices, parent=self)
+    if not dialog.exec_(QtGui.QCursor().pos()):
+        return
+    choice = dialog.choice
+    """
+    def __init__(
+            self, choices, labels=None, title=None, multi=False, parent=None):
+        super().__init__(parent=parent)
+        self.setup_ui(choices=choices, labels=labels, title=title, multi=multi)
+
+        btn = QtWidgets.QPushButton('Ok', clicked=self.accept)
+        ok_layout = QtWidgets.QHBoxLayout()
+        ok_layout.addStretch()
+        ok_layout.addWidget(btn)
+        self.main_layout.addLayout(ok_layout)
+
+    def accept(self):
+        self.choice = self.choices = [
+            item.data(Qt.UserRole)
+            for item in self.items_list.selectedItems()]
+        return super().accept()
+
+
+if __name__ == '__main__':
+    dialog = ChoiceScrollDialog(['a', 'b', 'c'], multi=True)
+    dialog.exec_()
+    choice = dialog.choice

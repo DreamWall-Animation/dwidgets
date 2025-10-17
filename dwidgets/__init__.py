@@ -1,7 +1,8 @@
 from dwidgets.azimuth import AzimuthWidget
 from dwidgets.calendar import (
     CalendarDialog, DatePickerButton, date_prompt, WeekSelector, MonthSelector)
-from dwidgets.choicemenu import ChoiceMenu, ChoiceScrollMenu
+from dwidgets.choicemenu import (
+    ChoiceMenu, ChoiceScrollMenu, ChoiceScrollDialog)
 from dwidgets.confirm import confirm_dialog
 from dwidgets.cornereditor import CornerEditor
 from dwidgets.dropfilesarea import DropFilesArea
